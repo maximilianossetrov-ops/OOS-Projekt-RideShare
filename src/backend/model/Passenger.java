@@ -1,4 +1,4 @@
-public class Passenger {
+ublic class Passenger {
     private int id;
     private String name;
     private PassengerState state;
