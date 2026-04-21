@@ -6,9 +6,8 @@ public class Passenger {
     private String email;
     private PassengerState state;
 
-    public Passenger(int id, String email, String name) {
+    public Passenger(int id, String email) {
         this.id = id;
-        this.name = name;
         this.email = email;
         this.state = PassengerState.WAITING;
     }
