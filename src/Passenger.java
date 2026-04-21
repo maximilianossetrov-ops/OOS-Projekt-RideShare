@@ -3,7 +3,7 @@ public class Passenger {
     private String name;
     private PassengerState state;
 
-    Passenger(int id, String name) {
+    public Passenger(int id, String name) {
         this.id = id;
         this.name = name;
         this.state = PassengerState.WAITING;
@@ -18,6 +18,7 @@ public class Passenger {
     public PassengerState getState() {
         return this.state;
     }
+    public void setState(PassengerState state) {this.state = state;}
 
     @Override
     public String toString() {
