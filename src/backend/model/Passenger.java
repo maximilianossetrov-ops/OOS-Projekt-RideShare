@@ -3,11 +3,13 @@ package model;
 public class Passenger {
     private int id;
     private String name;
+    private String email;
     private PassengerState state;
 
-    public Passenger(int id, String name) {
+    public Passenger(int id, String email, String name) {
         this.id = id;
         this.name = name;
+        this.email = email;
         this.state = PassengerState.WAITING;
     }
 
@@ -17,6 +19,9 @@ public class Passenger {
     public String getName() {
         return this.name;
     }
+    public String getEmail() {
+        return this.name;
+    }
     public PassengerState getState() {
         return this.state;
     }
@@ -24,6 +29,6 @@ public class Passenger {
 
     @Override
     public String toString() {
-        return "Passenger[ID=" + id + ", Name=" + name + ", Status=" + state + "]";
+        return "Passenger[Email=" + email + ", Name=" + name + ", Status=" + state + "]";
     }
 }
