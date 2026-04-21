@@ -1,7 +1,6 @@
-package easyride.ui;
+package ui; // Falls dein Package anders heißt, ändere diese Zeile!
 
 import javafx.application.Application;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -17,7 +16,7 @@ public class EasyRideApp extends Application {
     private Stage window;
 
     // --- FARBEN & STYLES ---
-    private final String bgColor = "-fx-background-color: #F8F9FA;"; // Helles Grau/Weiß
+    private final String bgColor = "-fx-background-color: #F8F9FA;";
     private final String cardStyle = "-fx-background-color: white; -fx-background-radius: 15px; -fx-padding: 30px;";
     private final String btnPrimaryStyle = "-fx-background-color: #000000; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-background-radius: 8px; -fx-cursor: hand;";
     private final String btnSecondaryStyle = "-fx-background-color: #E9ECEF; -fx-text-fill: #212529; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8px; -fx-cursor: hand;";
@@ -28,35 +27,34 @@ public class EasyRideApp extends Application {
         this.window = primaryStage;
         this.window.setTitle("EasyRide - Smart Mobility");
 
-        // Startbildschirm aufrufen
         showRoleSelectionScene();
     }
 
-    //Startbildschirm (Auswahl Kunde oder Fahrer)
+    /**
+     * SZENE 1: Rollenauswahl
+     */
     private void showRoleSelectionScene() {
         VBox mainLayout = new VBox(20);
         mainLayout.setAlignment(Pos.CENTER);
         mainLayout.setStyle(bgColor);
 
-        // Die "Karte" in der Mitte
         VBox card = new VBox(25);
         card.setAlignment(Pos.CENTER);
         card.setMaxWidth(350);
         card.setStyle(cardStyle);
         card.setEffect(createShadow());
 
-        // Titel
         Label title = new Label("Willkommen");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
 
         Label subtitle = new Label("Wähle deine Rolle, um zu starten.");
         subtitle.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 14px;");
 
-        // Buttons
-        Button customerBtn = new Button("Fahrt buchen (Kunde)");
+        Button customerBtn = new Button("Ich bin Kunde");
         customerBtn.setStyle(btnPrimaryStyle);
         customerBtn.setPrefSize(250, 45);
-        customerBtn.setOnAction(e -> showCustomerScene());
+        // NEU: Leitet jetzt zur Login/Register-Auswahl weiter!
+        customerBtn.setOnAction(e -> showCustomerAuthScene());
 
         Button driverBtn = new Button("Zum Dashboard (Fahrer)");
         driverBtn.setStyle(btnSecondaryStyle);
@@ -66,12 +64,62 @@ public class EasyRideApp extends Application {
         card.getChildren().addAll(title, subtitle, customerBtn, driverBtn);
         mainLayout.getChildren().add(card);
 
-        Scene scene = new Scene(mainLayout, 500, 700);
-        window.setScene(scene);
+        window.setScene(new Scene(mainLayout, 500, 700));
         window.show();
     }
 
-    //Kunden-Ansicht (Buchen)
+    /**
+     * SZENE 2 (NEU): Login oder Registrierung für Kunden
+     */
+    private void showCustomerAuthScene() {
+        VBox mainLayout = new VBox(20);
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.setStyle(bgColor);
+
+        VBox card = new VBox(20);
+        card.setAlignment(Pos.CENTER);
+        card.setMaxWidth(350);
+        card.setStyle(cardStyle);
+        card.setEffect(createShadow());
+
+        Label title = new Label("Kunden-Bereich");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
+
+        // Wir deuten hier nur den Login an, da die Logik noch fehlt
+        TextField emailField = new TextField();
+        emailField.setPromptText("E-Mail Adresse");
+        emailField.setStyle(textFieldStyle);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Passwort");
+        passwordField.setStyle(textFieldStyle);
+
+        Button loginBtn = new Button("Einloggen");
+        loginBtn.setStyle(btnPrimaryStyle);
+        loginBtn.setPrefSize(350, 45);
+        loginBtn.setOnAction(e -> showCustomerScene()); // Geht zur Buchung
+
+        Label divider = new Label("--- ODER ---");
+        divider.setStyle("-fx-text-fill: #ADB5BD; -fx-font-size: 12px;");
+
+        Button registerBtn = new Button("Neu registrieren");
+        registerBtn.setStyle(btnSecondaryStyle);
+        registerBtn.setPrefSize(350, 45);
+        registerBtn.setOnAction(e -> showCustomerScene()); // Geht ebenfalls zur Buchung
+
+        Button backBtn = new Button("Zurück");
+        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6C757D; -fx-cursor: hand; -fx-font-weight: bold;");
+        backBtn.setOnAction(e -> showRoleSelectionScene());
+
+        card.getChildren().addAll(title, emailField, passwordField, loginBtn, divider, registerBtn);
+        mainLayout.getChildren().addAll(card, backBtn);
+
+        window.setScene(new Scene(mainLayout, 500, 700));
+    }
+
+    /**
+     * SZENE 3: Kunden-Ansicht (Buchen)
+     */
     private void showCustomerScene() {
         VBox mainLayout = new VBox(20);
         mainLayout.setAlignment(Pos.CENTER);
@@ -86,7 +134,6 @@ public class EasyRideApp extends Application {
         Label title = new Label("Wohin soll's gehen?");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
 
-        // Eingabefelder
         TextField startField = new TextField();
         startField.setPromptText("Startpunkt eingeben...");
         startField.setStyle(textFieldStyle);
@@ -95,15 +142,14 @@ public class EasyRideApp extends Application {
         zielField.setPromptText("Zielpunkt eingeben...");
         zielField.setStyle(textFieldStyle);
 
-        // Buchen Button
         Button bookBtn = new Button("Jetzt buchen");
         bookBtn.setStyle(btnPrimaryStyle);
-        bookBtn.setPrefSize(350, 45); // Nimmt die ganze Breite der Karte ein
+        bookBtn.setPrefSize(350, 45);
 
-        // Zurück Button
-        Button backBtn = new Button("Zurück");
+        Button backBtn = new Button("Abmelden / Zurück");
         backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6C757D; -fx-cursor: hand; -fx-font-weight: bold;");
-        backBtn.setOnAction(e -> showRoleSelectionScene());
+        // Der Zurück-Button hier geht jetzt sinnvollerweise zum Auth-Screen zurück
+        backBtn.setOnAction(e -> showCustomerAuthScene());
 
         card.getChildren().addAll(title, new Label("Start"), startField, new Label("Ziel"), zielField, bookBtn);
         mainLayout.getChildren().addAll(card, backBtn);
@@ -111,7 +157,9 @@ public class EasyRideApp extends Application {
         window.setScene(new Scene(mainLayout, 500, 700));
     }
 
-    //Fahrer-Ansicht (Tablet)
+    /**
+     * SZENE 4: Fahrer-Ansicht (Tablet)
+     */
     private void showDriverScene() {
         VBox mainLayout = new VBox(20);
         mainLayout.setAlignment(Pos.CENTER);
@@ -126,7 +174,6 @@ public class EasyRideApp extends Application {
         Label title = new Label("Fahrer Tablet");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
 
-        // Mock-Up für die Routen-Info
         VBox infoBox = new VBox(10);
         infoBox.setStyle("-fx-background-color: #E9ECEF; -fx-padding: 15px; -fx-background-radius: 8px;");
         infoBox.getChildren().addAll(
@@ -149,16 +196,14 @@ public class EasyRideApp extends Application {
         window.setScene(new Scene(mainLayout, 500, 700));
     }
 
-    // Hilfsmethode für einen weichen, modernen Schatten hinter den Karten
     private DropShadow createShadow() {
         DropShadow shadow = new DropShadow();
-        shadow.setColor(Color.rgb(0, 0, 0, 0.1)); // Sehr helles schwarz (transparent)
+        shadow.setColor(Color.rgb(0, 0, 0, 0.1));
         shadow.setRadius(15);
         shadow.setOffsetY(5);
         return shadow;
     }
 
-    // --- DER STARTPUNKT ---
     public static void main(String[] args) {
         launch(args);
     }

@@ -1,3 +1,5 @@
+package model;
+
 public class Connection {
     private Station station1;
     private Station station2;

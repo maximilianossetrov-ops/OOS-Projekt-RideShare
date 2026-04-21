@@ -1,4 +1,6 @@
-ublic class Passenger {
+package model;
+
+public class Passenger {
     private int id;
     private String name;
     private PassengerState state;
