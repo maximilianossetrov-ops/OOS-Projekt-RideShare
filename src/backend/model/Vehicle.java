@@ -7,6 +7,7 @@ public class Vehicle {
     private int id;
     private int maxCapacity;
     private List<Passenger> passengerList = new ArrayList<>();
+    private Route currentRoute;
 
     public Vehicle(int id, int maxCapacity) {
         this.id = id;
@@ -15,7 +16,15 @@ public class Vehicle {
 
     public int getId() { return this.id; }
     public int getMaxCapacity() { return this.maxCapacity; }
-    public List<Passenger> getPassengerList() { return passengerList; }
+    public List<Passenger> getPassengers() { return passengerList; }
+
+    public void setCurrentRoute(Route route) {
+        this.currentRoute = route;
+    }
+
+    public Route getCurrentRoute() {
+        return currentRoute;
+    }
 
     public boolean addPassenger(Passenger passenger) {
         if (passengerList.size() >= maxCapacity) {

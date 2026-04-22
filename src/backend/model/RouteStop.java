@@ -3,13 +3,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RouteStop extends Station{
+public class RouteStop {
+    Station station;
     private LocalDateTime plannedArrivalTime;
     private List<Passenger> passengersToPickUp = new ArrayList<>();
     private List<Passenger> passengersToDropOff = new ArrayList<>();
+    private Boolean reached;
 
-    public RouteStop(String name, Boolean isDepot) {
-        super(name, isDepot);
+    public RouteStop(Station station) {
+        this.station = station;
+        this.reached = false;
     }
 
     public LocalDateTime getPlannedArrivalTime() {return plannedArrivalTime;}
@@ -17,4 +20,17 @@ public class RouteStop extends Station{
 
     public List<Passenger> getPassengersToPickUp() { return passengersToPickUp; }
     public List<Passenger> getPassengersToDropOff() { return passengersToDropOff; }
+
+    public void setReached(boolean reached) {
+        this.reached = reached;
+    }
+
+    public boolean isReached() {
+        return reached;
+    }
+
+    public Station getStation() {
+        return station;
+    }
+
 }
