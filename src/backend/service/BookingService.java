@@ -9,7 +9,6 @@ import ui.Main;
 import static model.PassengerState.IN_TRANSIT;
 
 public class BookingService {
-    // Der BookingService braucht Zugriff auf die anderen Gehirne
     private RoutingService routingService;
     private FleetService fleetService;
 
