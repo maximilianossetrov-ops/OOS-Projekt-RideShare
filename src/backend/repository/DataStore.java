@@ -42,6 +42,10 @@ public class DataStore {
     }
 
     //HILFSMETHODEN
+    public void addVehicle(Vehicle vehicle) {
+        this.vehicles.add(vehicle);
+    }
+
     public void addPassenger(Passenger passenger) {
         this.registeredPassengers.add(passenger);
     }

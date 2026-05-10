@@ -1,7 +1,8 @@
 package repository;
 
-import model.Station;
 import model.Connection;
+import model.Station;
+import model.Vehicle;
 
 public class DataSetup {
     public static void fillDatabase(DataStore db) {
@@ -65,5 +66,11 @@ public class DataSetup {
         db.addConnection(new Connection(alex, frankfurter, 5));
 
         System.out.println("Karte erfolgreich geladen! " + db.getStations().size() + " Stationen aktiv.");
+
+        // --- 3. FAHRZEUGE ---
+        db.addVehicle(new Vehicle(1, 4));
+        db.addVehicle(new Vehicle(2, 4));
+        db.addVehicle(new Vehicle(3, 4));
+        System.out.println(db.getVehicles().size() + " Fahrzeuge bereit.");
     }
 }

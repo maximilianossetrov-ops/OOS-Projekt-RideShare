@@ -2,54 +2,53 @@ package service;
 
 import model.*;
 import repository.DataStore;
-import service.*;
-import model.*;
-import ui.Main;
 
-import static model.PassengerState.IN_TRANSIT;
+public class BookingService implements IBookingService {
+    private final RoutingService routingService;
+    private final FleetService fleetService;
 
-public class BookingService {
-    private RoutingService routingService;
-    private FleetService fleetService;
-
-    public BookingService() {
-        this.routingService = new RoutingService();
-        this.fleetService = new FleetService();
+    public BookingService(DataStore dataStore) {
+        this.routingService = new RoutingService(dataStore);
+        this.fleetService = new FleetService(dataStore);
     }
 
-
+    @Override
     public boolean bookRide(Station start, Station target, Passenger p) {
-        System.out.println("Buchungsanfrage für: " + p.getName());
-
-        // 1. Ein passendes Fahrzeug finden
         Vehicle v = fleetService.getVehicleForPassenger(p);
-
         if (v == null) {
             System.out.println("Fehler: Kein freies Fahrzeug verfügbar!");
             return false;
         }
 
-        // 2. Die beste Route berechnen lassen
-        // Übergeben die aktuelle Route des Autos und den neuen Gast
-        Route neueRoute = routingService.calcNewRoute(v.getCurrentRoute(), p, start, target);
+        Route newRoute;
+        if (v.getCurrentRoute() == null) {
+            newRoute = routingService.calcInitialRoute(v, start, target, p);
+        } else {
+            newRoute = routingService.calcNewRoute(v.getCurrentRoute(), p, start, target);
+        }
 
-        if (neueRoute == null) {
+        if (newRoute == null) {
             System.out.println("Fehler: Route konnte nicht berechnet werden.");
             return false;
         }
 
-        // 3. Dem Fahrzeug die neue Route zuweisen
-        v.setCurrentRoute(neueRoute);
-        v.getPassengers().add(p);
-        p.setState(IN_TRANSIT); // Passagier ist jetzt unterwegs
+        v.setCurrentRoute(newRoute);
+        v.addPassenger(p); // adds to vehicle list; sets state IN_TRANSIT
 
-        System.out.println("Erfolg! " + p.getName() + " wurde Fahrzeug " + v.getId() + " zugewiesen.");
+        // Link the passenger back to their vehicle and journey endpoints
+        // so that TimeService can answer waiting-time / remaining-time queries.
+        p.setAssignedVehicle(v);
+        p.setPickupStation(start);
+        p.setDropoffStation(target);
+
+        System.out.println("Erfolg! " + p.getName() + " (" + p.getEmail() + ")"
+                + " → Fahrzeug " + v.getId()
+                + " | Start: " + start.getName()
+                + " | Ziel: " + target.getName());
         return true;
     }
 
     public void confirmArrival(Vehicle v, RouteStop stop) {
-        // Logik wenn ein Fahrzeug ankommt (Passagiere aussteigen lassen etc.)
-        System.out.println("Fahrzeug " + v.getId() + " ist an Station " + stop.getStation().getName() + " angekommen.");
-        stop.setReached(true);
+        fleetService.confirmArrival(v, stop);
     }
 }

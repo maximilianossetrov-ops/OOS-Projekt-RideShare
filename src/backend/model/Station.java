@@ -1,5 +1,7 @@
 package model;
 
+import java.util.Objects;
+
 public class Station {
     private String name;
     private Boolean isDepot;
@@ -12,8 +14,20 @@ public class Station {
     public String getName() {
         return name;
     }
+
     public Boolean getIsDepot() {
         return isDepot;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Station)) return false;
+        return Objects.equals(name, ((Station) o).name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name);
+    }
 }
