@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//c/Program Files/Eclipse Adoptium\" 2>/dev/**)",
-      "Read(//c/Program Files/Microsoft\" 2>/dev/null | grep -i java 2>/dev/**)"
-    ]
-  }
-}

@@ -1,10 +1,5 @@
 package service;
-
-import model.Passenger;
-import model.Route;
-import model.RouteStop;
-import model.Station;
-import model.Vehicle;
+import model.*;
 
 public interface IRouteService {
     Route calcNewRoute(Route currentRoute, Passenger passenger, Station pickupStation, Station dropoffStation);

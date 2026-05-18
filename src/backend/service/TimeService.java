@@ -1,8 +1,6 @@
 package service;
 
-import model.Passenger;
-import model.Route;
-import model.RouteStop;
+import model.*;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
