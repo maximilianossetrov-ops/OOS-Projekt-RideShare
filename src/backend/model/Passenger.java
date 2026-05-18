@@ -1,28 +1,40 @@
 package model;
 
+/**
+ * Repräsentiert einen Fahrgast im EasyRide-System.
+ * Der Anzeigename wird automatisch aus der E-Mail-Adresse abgeleitet.
+ * Nach einer Buchung werden dem Fahrgast sein Fahrzeug sowie die
+ * Abhol- und Zielhaltestelle zugewiesen, damit der TimeService die
+ * Wartezeit berechnen kann.
+ */
 public class Passenger {
-    private int id;
-    private String name;
-    private String email;
+
+    private final int id;
+    private final String name;
+    private final String email;
     private PassengerState state;
 
-    // Tracking fields set by BookingService after a ride is booked
+    // Buchungsdetails – werden vom BookingService nach erfolgreicher Buchung gesetzt
     private Vehicle assignedVehicle;
     private Station pickupStation;
     private Station dropoffStation;
 
+    /**
+     * Erstellt einen neuen Fahrgast mit der angegebenen ID und E-Mail.
+     * Der Name wird aus dem Teil vor dem "@" abgeleitet (z. B. "anna@test.de" → "anna").
+     */
     public Passenger(int id, String email) {
         this.id = id;
         this.email = email;
-        // Derive a display name from the email prefix
         this.name = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
         this.state = PassengerState.WAITING;
     }
 
-    public int getId() { return this.id; }
-    public String getName() { return this.name; }
-    public String getEmail() { return this.email; }
-    public PassengerState getState() { return this.state; }
+    public int getId() { return id; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+
+    public PassengerState getState() { return state; }
     public void setState(PassengerState state) { this.state = state; }
 
     public Vehicle getAssignedVehicle() { return assignedVehicle; }
@@ -36,6 +48,6 @@ public class Passenger {
 
     @Override
     public String toString() {
-        return "Passenger[name=" + name + ", email=" + email + ", status=" + state + "]";
+        return "Fahrgast[name=" + name + ", email=" + email + ", zustand=" + state + "]";
     }
 }

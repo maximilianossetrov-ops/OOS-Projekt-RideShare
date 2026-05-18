@@ -6,16 +6,21 @@ import model.Station;
 import model.Vehicle;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+/**
+ * Zentraler In-Memory-Datenspeicher, der alle persistenten Objekte des Systems hält.
+ * Da wir keine echte Datenbank nutzen, übernimmt diese Klasse die Rolle
+ * eines einfachen Repositories. Die Getter liefern unveränderliche Listen zurück,
+ * damit externe Klassen die Daten nicht direkt manipulieren können.
+ */
 public class DataStore {
 
-    // --- UNSERE TABELLEN (Die Listen) ---
-    private List<Passenger> registeredPassengers;
-    private List<Vehicle> vehicles; // Oder 'Driver', je nachdem wie ihr das nennt
-    private List<Station> stations;
-    private List<Connection> connections;
-
+    private final List<Passenger> registeredPassengers;
+    private final List<Vehicle> vehicles;
+    private final List<Station> stations;
+    private final List<Connection> connections;
 
     public DataStore() {
         this.registeredPassengers = new ArrayList<>();
@@ -24,43 +29,39 @@ public class DataStore {
         this.connections = new ArrayList<>();
     }
 
-    //GETTER
+    // --- Lesezugriff (unveränderliche Sichten) ---
+
     public List<Passenger> getRegisteredPassengers() {
-        return registeredPassengers;
+        return Collections.unmodifiableList(registeredPassengers);
     }
 
     public List<Vehicle> getVehicles() {
-        return vehicles;
+        return Collections.unmodifiableList(vehicles);
     }
 
     public List<Station> getStations() {
-        return stations;
+        return Collections.unmodifiableList(stations);
     }
 
     public List<Connection> getConnections() {
-        return connections;
+        return Collections.unmodifiableList(connections);
     }
 
-    //HILFSMETHODEN
-    public void addVehicle(Vehicle vehicle) {
-        this.vehicles.add(vehicle);
-    }
+    // --- Schreibzugriff über dedizierte Methoden ---
 
     public void addPassenger(Passenger passenger) {
-        this.registeredPassengers.add(passenger);
-    }
-    public void addStation(Station station) {
-        // Hier könnte man später sogar prüfen, ob die Station schon existiert!
-        this.stations.add(station);
-    }
-    public void addConnection(Connection connection) {
-        this.connections.add(connection);
+        registeredPassengers.add(passenger);
     }
 
-    public void printPassenger() {
-        System.out.println("Registered Passengers: ");
-        for(Passenger p: registeredPassengers) {
-            System.out.println(p.getEmail());
-        }
+    public void addVehicle(Vehicle vehicle) {
+        vehicles.add(vehicle);
+    }
+
+    public void addStation(Station station) {
+        stations.add(station);
+    }
+
+    public void addConnection(Connection connection) {
+        connections.add(connection);
     }
 }

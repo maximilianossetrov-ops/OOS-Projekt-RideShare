@@ -2,10 +2,23 @@ package service;
 
 import model.Passenger;
 
+/**
+ * Schnittstelle für Zeitberechnungen während einer Fahrt.
+ * Ermöglicht es der UI, Echtzeit-Informationen zur Wartezeit anzuzeigen.
+ */
 public interface ITimeService {
-    // Minutes until the vehicle reaches the passenger's pickup stop (before boarding)
+
+    /**
+     * Berechnet die verbleibenden Minuten bis zur Abholung des Fahrgastes.
+     *
+     * @return Minuten bis zur Abholung, oder -1 wenn der Halt bereits passiert wurde
+     */
     int getWaitingTime(Passenger passenger);
 
-    // Minutes until the vehicle reaches the passenger's dropoff stop (after boarding)
+    /**
+     * Berechnet die verbleibende Fahrzeit bis zum Ziel des Fahrgastes.
+     *
+     * @return Minuten bis zur Ankunft, oder -1 wenn der Halt bereits passiert wurde
+     */
     int getRemainingTime(Passenger passenger);
 }

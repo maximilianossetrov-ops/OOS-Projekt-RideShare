@@ -22,15 +22,35 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Haupt-UI-Klasse der EasyRide-Anwendung (JavaFX).
+ *
+ * Verwaltet die Szenennavigation zwischen:
+ *   1. Rollenauswahl (Kunde / Fahrer / Simulation)
+ *   2. Kunden-Anmeldung und Registrierung
+ *   3. Buchungsmaske
+ *   4. Live-Fahrstatus
+ *   5. Fahrer-Tablet
+ *   6. Simulationsmodus
+ *
+ * Die Services werden beim Start über Dependency Injection erzeugt –
+ * die UI-Klasse kennt nur die Interfaces, nicht die konkreten Klassen.
+ */
 public class EasyRideApp extends Application {
 
+    // Fenster-Referenz und Service-Abhängigkeiten (über Interfaces)
     private Stage window;
-    private BookingService bookingService;
-    private TimeService timeService;
+    private IBookingService bookingService;
+    private IFleetService fleetService;
+    private ITimeService timeService;
+
+    // Aktuell eingeloggter Fahrgast
     private Passenger loggedInPassenger;
+
+    // Timer für die regelmäßige Aktualisierung der Live-Statusanzeige
     private Timeline liveTimer;
 
-    // Styles
+    // ── Style-Konstanten ────────────────────────────────────────────────────────
     private static final String BG    = "-fx-background-color: #F8F9FA;";
     private static final String CARD  = "-fx-background-color: white; -fx-background-radius: 12px; -fx-padding: 24px;";
     private static final String BLK   = "-fx-background-color: #212529; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8px; -fx-cursor: hand;";
@@ -42,16 +62,27 @@ public class EasyRideApp extends Application {
     private static final String BLUE  = "-fx-text-fill: #0D6EFD; -fx-font-size: 14px; -fx-font-weight: bold;";
     private static final String GREEN = "-fx-text-fill: #28A745; -fx-font-size: 14px; -fx-font-weight: bold;";
 
+    // ── Anwendungsstart ─────────────────────────────────────────────────────────
+
+    /**
+     * JavaFX-Einstiegspunkt. Erzeugt die Services und startet die erste Szene.
+     * Die Services werden hier per Dependency Injection zusammengesetzt.
+     */
     @Override
     public void start(Stage stage) {
         window = stage;
-        bookingService = new BookingService(Main.database);
-        timeService = new TimeService();
+
+        // Services zusammensetzen – die UI hängt nur von den Interfaces ab
+        fleetService   = new FleetService(Main.getDatabase());
+        IRouteService routeService = new RoutingService(Main.getDatabase());
+        bookingService = new BookingService(routeService, fleetService);
+        timeService    = new TimeService();
+
         window.setTitle("EasyRide – Smart Mobility");
         showRoleSelectionScene();
     }
 
-    // ── SCENE 1: Role Selection ─────────────────────────────────────────────
+    // ── SZENE 1: Rollenauswahl ──────────────────────────────────────────────────
 
     private void showRoleSelectionScene() {
         stopTimer();
@@ -59,24 +90,25 @@ public class EasyRideApp extends Application {
         card.setAlignment(Pos.CENTER);
         card.getChildren().addAll(
             title("EasyRide"), sub("Smart Mobility Platform"), spacer(),
-            btn("Ich bin Kunde",             BLK, e -> showCustomerAuthScene()),
-            btn("Fahrer-Tablet",             GRY, e -> showDriverScene()),
-            btn("Simulation starten",        GRN, e -> showSimulationScene())
+            btn("Ich bin Kunde",      BLK, e -> showCustomerAuthScene()),
+            btn("Fahrer-Tablet",      GRY, e -> showDriverScene()),
+            btn("Simulation starten", GRN, e -> showSimulationScene())
         );
         show(centered(card), 460, 440);
     }
 
-    // ── SCENE 2: Customer Auth ──────────────────────────────────────────────
+    // ── SZENE 2: Kunden-Anmeldung ───────────────────────────────────────────────
 
     private void showCustomerAuthScene() {
         VBox card = card();
         card.getChildren().addAll(
             title("Kunden-Bereich"),
             btn("Einloggen (Demo)", BLK, e -> {
-                List<Passenger> all = Main.database.getRegisteredPassengers();
+                // Demo-Login: ersten registrierten Fahrgast nehmen oder neu anlegen
+                List<Passenger> all = Main.getDatabase().getRegisteredPassengers();
                 if (all.isEmpty()) {
                     loggedInPassenger = new Passenger(1, "demo@easyride.de");
-                    Main.database.addPassenger(loggedInPassenger);
+                    Main.getDatabase().addPassenger(loggedInPassenger);
                 } else {
                     loggedInPassenger = all.get(0);
                 }
@@ -89,23 +121,31 @@ public class EasyRideApp extends Application {
         show(centered(card), 460, 360);
     }
 
-    // ── SCENE 2.5: Registration ─────────────────────────────────────────────
+    // ── SZENE 2.5: Registrierung ────────────────────────────────────────────────
 
     private void showRegistrationScene() {
         VBox card = card();
         TextField emailField = field("E-Mail Adresse");
-        Label errLbl = errLabel();
+        Label errLabel = errLabel();
+
         card.getChildren().addAll(
-            title("Konto erstellen"), emailField, errLbl,
+            title("Konto erstellen"), emailField, errLabel,
             btn("Registrieren", BLK, e -> {
                 String email = emailField.getText().trim();
-                if (email.isEmpty()) { errLbl.setText("Bitte E-Mail eingeben!"); return; }
-                boolean exists = Main.database.getRegisteredPassengers().stream()
+                if (email.isEmpty()) {
+                    errLabel.setText("Bitte eine E-Mail-Adresse eingeben!");
+                    return;
+                }
+                // Prüfen, ob die E-Mail-Adresse bereits vergeben ist
+                boolean alreadyExists = Main.getDatabase().getRegisteredPassengers().stream()
                         .anyMatch(p -> p.getEmail().equalsIgnoreCase(email));
-                if (exists) { errLbl.setText("E-Mail bereits registriert!"); return; }
-                int id = Main.database.getRegisteredPassengers().size() + 1;
-                loggedInPassenger = new Passenger(id, email);
-                Main.database.addPassenger(loggedInPassenger);
+                if (alreadyExists) {
+                    errLabel.setText("Diese E-Mail-Adresse ist bereits registriert!");
+                    return;
+                }
+                int newId = Main.getDatabase().getRegisteredPassengers().size() + 1;
+                loggedInPassenger = new Passenger(newId, email);
+                Main.getDatabase().addPassenger(loggedInPassenger);
                 showBookingScene();
             }),
             back(e -> showCustomerAuthScene())
@@ -113,41 +153,55 @@ public class EasyRideApp extends Application {
         show(centered(card), 460, 360);
     }
 
-    // ── SCENE 3: Booking ────────────────────────────────────────────────────
+    // ── SZENE 3: Buchung ────────────────────────────────────────────────────────
 
     private void showBookingScene() {
         stopTimer();
         VBox card = card();
 
-        Label welcome = new Label("Hallo, " + loggedInPassenger.getName() + " 👋");
-        welcome.setStyle("-fx-font-size: 14px; -fx-text-fill: #495057;");
+        Label welcomeLabel = new Label("Hallo, " + loggedInPassenger.getName() + " 👋");
+        welcomeLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #495057;");
 
-        List<String> stationNames = Main.database.getStations().stream()
-                .filter(s -> !Boolean.TRUE.equals(s.getIsDepot()))
+        // Nur reguläre Haltestellen anzeigen – kein Depot
+        List<String> stationNames = Main.getDatabase().getStations().stream()
+                .filter(s -> !s.isDepot())
                 .map(Station::getName)
                 .collect(Collectors.toList());
 
         ComboBox<String> startBox  = combo(stationNames, "Starthaltepunkt...");
         ComboBox<String> targetBox = combo(stationNames, "Zielhaltepunkt...");
-        Label errLbl = errLabel();
+        Label errLabel = errLabel();
 
         card.getChildren().addAll(
-            title("Wohin geht's?"), welcome,
-            lbl("Starthaltepunkt"), startBox,
-            lbl("Zielhaltepunkt"),  targetBox,
-            errLbl,
+            title("Wohin geht's?"), welcomeLabel,
+            lbl("Starthaltepunkt"),  startBox,
+            lbl("Zielhaltepunkt"),   targetBox,
+            errLabel,
             btn("Jetzt buchen", BLK, e -> {
-                String s = startBox.getValue(), t = targetBox.getValue();
-                if (s == null || t == null) { errLbl.setText("Bitte Start und Ziel wählen!"); return; }
-                if (s.equals(t))            { errLbl.setText("Start und Ziel dürfen nicht gleich sein!"); return; }
-                Station start  = station(s);
-                Station target = station(t);
-                if (start == null || target == null) { errLbl.setText("Haltepunkt nicht gefunden."); return; }
-                errLbl.setText("");
+                String startName  = startBox.getValue();
+                String targetName = targetBox.getValue();
+
+                if (startName == null || targetName == null) {
+                    errLabel.setText("Bitte Start- und Zielhaltepunkt wählen!");
+                    return;
+                }
+                if (startName.equals(targetName)) {
+                    errLabel.setText("Start und Ziel dürfen nicht identisch sein!");
+                    return;
+                }
+
+                Station start  = findStation(startName);
+                Station target = findStation(targetName);
+                if (start == null || target == null) {
+                    errLabel.setText("Haltepunkt nicht gefunden.");
+                    return;
+                }
+
+                errLabel.setText("");
                 if (bookingService.bookRide(start, target, loggedInPassenger)) {
                     showRideStatusScene();
                 } else {
-                    errLbl.setText("Buchung fehlgeschlagen – kein Fahrzeug verfügbar oder keine Route möglich.");
+                    errLabel.setText("Buchung fehlgeschlagen – kein Fahrzeug verfügbar oder keine Route möglich.");
                 }
             }),
             back(e -> showCustomerAuthScene())
@@ -155,155 +209,172 @@ public class EasyRideApp extends Application {
         show(centered(card), 460, 520);
     }
 
-    // ── SCENE 4: Live Ride Status ───────────────────────────────────────────
+    // ── SZENE 4: Live-Fahrstatus ────────────────────────────────────────────────
 
     private void showRideStatusScene() {
         stopTimer();
         VBox card = card();
-        Passenger p = loggedInPassenger;
-        Vehicle v   = p.getAssignedVehicle();
+        Passenger passenger = loggedInPassenger;
+        Vehicle vehicle = passenger.getAssignedVehicle();
 
-        Label header  = bold("Fahrzeug #" + (v != null ? v.getId() : "—"));
-        Label pickup  = lbl("Abholung: " + (p.getPickupStation()  != null ? p.getPickupStation().getName()  : "—"));
-        Label dropoff = lbl("Ziel:     " + (p.getDropoffStation() != null ? p.getDropoffStation().getName() : "—"));
+        Label vehicleLabel  = bold("Fahrzeug #" + (vehicle != null ? vehicle.getId() : "—"));
+        Label pickupLabel   = lbl("Abholung: " + (passenger.getPickupStation()  != null ? passenger.getPickupStation().getName()  : "—"));
+        Label dropoffLabel  = lbl("Ziel:     " + (passenger.getDropoffStation() != null ? passenger.getDropoffStation().getName() : "—"));
 
-        Label waitLbl  = new Label("⏳ wird berechnet...");
-        Label remLbl   = new Label("🚗 wird berechnet...");
-        Label stateLbl = new Label("Status: " + p.getState());
-        waitLbl.setStyle(BLUE);
-        remLbl.setStyle(GREEN);
-        stateLbl.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 13px;");
+        Label waitLabel     = new Label("⏳ wird berechnet...");
+        Label remainingLabel = new Label("🚗 wird berechnet...");
+        Label stateLabel    = new Label("Status: " + passenger.getState());
+        waitLabel.setStyle(BLUE);
+        remainingLabel.setStyle(GREEN);
+        stateLabel.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 13px;");
 
+        // Aktualisierungslogik als Runnable – wird beim Laden und per Timer aufgerufen
         Runnable refresh = () -> {
-            int w = timeService.getWaitingTime(p);
-            int r = timeService.getRemainingTime(p);
-            stateLbl.setText("Status: " + p.getState());
-            waitLbl.setText(w >= 0
-                ? "⏳ Wartezeit bis Abholung: " + w + " Min."
+            int waitMinutes      = timeService.getWaitingTime(passenger);
+            int remainingMinutes = timeService.getRemainingTime(passenger);
+            stateLabel.setText("Status: " + passenger.getState());
+            waitLabel.setText(waitMinutes >= 0
+                ? "⏳ Wartezeit bis Abholung: " + waitMinutes + " Min."
                 : "✅ Fahrzeug bereits am Startpunkt");
-            remLbl.setText(r >= 0
-                ? "🚗 Restfahrzeit bis Ziel: " + r + " Min."
-                : (p.getState() == PassengerState.ARRIVED ? "🏁 Angekommen!" : "—"));
+            remainingLabel.setText(remainingMinutes >= 0
+                ? "🚗 Restfahrzeit bis Ziel: " + remainingMinutes + " Min."
+                : (passenger.getState() == PassengerState.ARRIVED ? "🏁 Angekommen!" : "—"));
         };
         refresh.run();
 
-        // Refresh every 30 s automatically
+        // Status alle 30 Sekunden automatisch aktualisieren
         liveTimer = new Timeline(new KeyFrame(Duration.seconds(30), e -> refresh.run()));
         liveTimer.setCycleCount(Timeline.INDEFINITE);
         liveTimer.play();
 
         card.getChildren().addAll(
-            title("Meine Fahrt"), header, pickup, dropoff,
-            new Separator(), waitLbl, remLbl, stateLbl,
+            title("Meine Fahrt"), vehicleLabel, pickupLabel, dropoffLabel,
+            new Separator(), waitLabel, remainingLabel, stateLabel,
             btn("Aktualisieren", GRY, e -> refresh.run()),
             back(e -> { stopTimer(); showBookingScene(); })
         );
         show(centered(card), 460, 480);
     }
 
-    // ── SCENE 5: Driver Tablet ──────────────────────────────────────────────
+    // ── SZENE 5: Fahrer-Tablet ──────────────────────────────────────────────────
 
     private void showDriverScene() {
         stopTimer();
         VBox card = card();
         card.setMaxWidth(460);
 
-        List<Vehicle> vehicles = Main.database.getVehicles();
+        List<Vehicle> vehicles = Main.getDatabase().getVehicles();
         if (vehicles.isEmpty()) {
-            card.getChildren().addAll(title("Fahrer-Tablet"),
-                new Label("Keine Fahrzeuge vorhanden."), back(e -> showRoleSelectionScene()));
+            card.getChildren().addAll(
+                title("Fahrer-Tablet"),
+                new Label("Keine Fahrzeuge vorhanden."),
+                back(e -> showRoleSelectionScene())
+            );
             show(centered(card), 460, 280);
             return;
         }
 
-        ComboBox<String> vBox = new ComboBox<>();
-        vBox.setStyle(FIELD);
-        vBox.setMaxWidth(Double.MAX_VALUE);
+        // Fahrzeugauswahl-Dropdown
+        ComboBox<String> vehicleBox = new ComboBox<>();
+        vehicleBox.setStyle(FIELD);
+        vehicleBox.setMaxWidth(Double.MAX_VALUE);
         vehicles.forEach(v ->
-            vBox.getItems().add("Fahrzeug #" + v.getId() + "  (" + v.getPassengers().size() + "/" + v.getMaxCapacity() + " Sitzpl.)"));
-        vBox.getSelectionModel().selectFirst();
+            vehicleBox.getItems().add("Fahrzeug #" + v.getId()
+                    + "  (" + v.getPassengers().size() + "/" + v.getMaxCapacity() + " Sitzpl.)"));
+        vehicleBox.getSelectionModel().selectFirst();
 
-        Label nextStopLbl  = bold("—");
-        Label pickupLbl    = new Label("—");
-        Label dropoffLbl   = new Label("—");
-        Label routeMapLbl  = new Label("—");
-        pickupLbl.setWrapText(true);
-        dropoffLbl.setWrapText(true);
-        routeMapLbl.setWrapText(true);
-        routeMapLbl.setStyle("-fx-font-family: monospace; -fx-font-size: 11px; -fx-text-fill: #495057;");
+        Label nextStopLabel  = bold("—");
+        Label pickupLabel    = new Label("—");
+        Label dropoffLabel   = new Label("—");
+        Label routeMapLabel  = new Label("—");
+        pickupLabel.setWrapText(true);
+        dropoffLabel.setWrapText(true);
+        routeMapLabel.setWrapText(true);
+        routeMapLabel.setStyle("-fx-font-family: monospace; -fx-font-size: 11px; -fx-text-fill: #495057;");
 
         VBox infoPanel = new VBox(6);
         infoPanel.setStyle("-fx-background-color: #F8F9FA; -fx-padding: 12px; -fx-background-radius: 8px;");
         infoPanel.getChildren().addAll(
-            lbl("Nächster anzufahrender Halt:"), nextStopLbl,
-            lbl("Einsteiger:"), pickupLbl,
-            lbl("Aussteiger:"), dropoffLbl,
-            new Separator(), lbl("Route:"), routeMapLbl
+            lbl("Nächster anzufahrender Halt:"), nextStopLabel,
+            lbl("Einsteiger:"), pickupLabel,
+            lbl("Aussteiger:"), dropoffLabel,
+            new Separator(), lbl("Route:"), routeMapLabel
         );
 
-        Label statusLbl = new Label("");
+        Label statusLabel = new Label("");
 
+        // Anzeige für das aktuell gewählte Fahrzeug aktualisieren
         Runnable redraw = () -> {
-            int idx = vBox.getSelectionModel().getSelectedIndex();
+            int idx = vehicleBox.getSelectionModel().getSelectedIndex();
             if (idx < 0 || idx >= vehicles.size()) return;
-            Vehicle v = vehicles.get(idx);
-            Route route = v.getCurrentRoute();
+
+            Vehicle vehicle = vehicles.get(idx);
+            Route route = vehicle.getCurrentRoute();
+
             if (route == null || route.getStops().isEmpty()) {
-                nextStopLbl.setText("Keine aktive Route");
-                pickupLbl.setText("—"); dropoffLbl.setText("—"); routeMapLbl.setText("—");
+                nextStopLabel.setText("Keine aktive Route");
+                pickupLabel.setText("—");
+                dropoffLabel.setText("—");
+                routeMapLabel.setText("—");
                 return;
             }
-            RouteStop cur = route.getCurrentStop();
-            if (cur == null) { nextStopLbl.setText("Route abgeschlossen."); return; }
 
-            nextStopLbl.setText(cur.getStation().getName());
-            pickupLbl.setText(cur.getPassengersToPickUp().isEmpty() ? "Keine"
-                : cur.getPassengersToPickUp().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
-            dropoffLbl.setText(cur.getPassengersToDropOff().isEmpty() ? "Keine"
-                : cur.getPassengersToDropOff().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
-
-            StringBuilder sb = new StringBuilder();
-            List<RouteStop> stops = route.getStops();
-            for (int i = 0; i < stops.size(); i++) {
-                RouteStop s = stops.get(i);
-                String m = i < route.getCurrentStopIndex() ? "✓ " : (i == route.getCurrentStopIndex() ? "▶ " : "  ");
-                sb.append(m).append(s.getStation().getName());
-                if (!s.getPassengersToPickUp().isEmpty())
-                    sb.append("  ⬆").append(s.getPassengersToPickUp().stream().map(Passenger::getName).collect(Collectors.joining(",")));
-                if (!s.getPassengersToDropOff().isEmpty())
-                    sb.append("  ⬇").append(s.getPassengersToDropOff().stream().map(Passenger::getName).collect(Collectors.joining(",")));
-                sb.append('\n');
+            RouteStop currentStop = route.getCurrentStop();
+            if (currentStop == null) {
+                nextStopLabel.setText("Route abgeschlossen.");
+                return;
             }
-            routeMapLbl.setText(sb.toString());
-            vBox.getItems().set(idx,
-                "Fahrzeug #" + v.getId() + "  (" + v.getPassengers().size() + "/" + v.getMaxCapacity() + " Sitzpl.)");
+
+            nextStopLabel.setText(currentStop.getStation().getName());
+            pickupLabel.setText(currentStop.getPassengersToPickUp().isEmpty() ? "Keine"
+                : currentStop.getPassengersToPickUp().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
+            dropoffLabel.setText(currentStop.getPassengersToDropOff().isEmpty() ? "Keine"
+                : currentStop.getPassengersToDropOff().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
+
+            // Routenübersicht als Text aufbauen
+            routeMapLabel.setText(buildRouteDisplay(route));
+
+            // Dropdown-Text mit aktueller Belegung aktualisieren
+            vehicleBox.getItems().set(idx, "Fahrzeug #" + vehicle.getId()
+                    + "  (" + vehicle.getPassengers().size() + "/" + vehicle.getMaxCapacity() + " Sitzpl.)");
         };
 
-        vBox.setOnAction(e -> redraw.run());
+        vehicleBox.setOnAction(e -> redraw.run());
         redraw.run();
 
         Button confirmBtn = btn("✓  Haltepunkt bestätigen", GRN, null);
         confirmBtn.setOnAction(e -> {
-            int idx = vBox.getSelectionModel().getSelectedIndex();
+            int idx = vehicleBox.getSelectionModel().getSelectedIndex();
             if (idx < 0) return;
-            Vehicle v = vehicles.get(idx);
-            if (v.getCurrentRoute() == null) { statusLbl.setStyle(ERR); statusLbl.setText("Keine aktive Route."); return; }
-            RouteStop cur = v.getCurrentRoute().getCurrentStop();
-            if (cur == null) { statusLbl.setStyle(ERR); statusLbl.setText("Alle Halte bereits bestätigt."); return; }
-            String name = cur.getStation().getName();
-            bookingService.confirmArrival(v, cur);
-            statusLbl.setStyle(OKCLR);
-            statusLbl.setText("✓  " + name + " bestätigt.");
+            Vehicle vehicle = vehicles.get(idx);
+
+            if (vehicle.getCurrentRoute() == null) {
+                statusLabel.setStyle(ERR);
+                statusLabel.setText("Keine aktive Route.");
+                return;
+            }
+            RouteStop currentStop = vehicle.getCurrentRoute().getCurrentStop();
+            if (currentStop == null) {
+                statusLabel.setStyle(ERR);
+                statusLabel.setText("Alle Halte bereits bestätigt.");
+                return;
+            }
+
+            String stationName = currentStop.getStation().getName();
+            fleetService.confirmArrival(vehicle, currentStop);
+            statusLabel.setStyle(OKCLR);
+            statusLabel.setText("✓  " + stationName + " bestätigt.");
             redraw.run();
         });
 
         card.getChildren().addAll(
             title("Fahrer-Tablet"),
-            lbl("Fahrzeug wählen:"), vBox,
-            infoPanel, confirmBtn, statusLbl,
+            lbl("Fahrzeug wählen:"), vehicleBox,
+            infoPanel, confirmBtn, statusLabel,
             back(e -> showRoleSelectionScene())
         );
 
+        // ScrollPane für den Fall dass der Inhalt zu groß wird
         VBox scrollContent = new VBox(card);
         scrollContent.setAlignment(Pos.CENTER);
         scrollContent.setStyle(BG);
@@ -314,7 +385,7 @@ public class EasyRideApp extends Application {
         window.setScene(new Scene(scroll, 520, 700));
     }
 
-    // ── SCENE 6: Simulation ─────────────────────────────────────────────────
+    // ── SZENE 6: Simulation ─────────────────────────────────────────────────────
 
     private void showSimulationScene() {
         stopTimer();
@@ -323,10 +394,10 @@ public class EasyRideApp extends Application {
         root.setStyle(BG);
         root.setPadding(new Insets(20));
 
-        TextArea log = new TextArea();
-        log.setEditable(false);
-        log.setPrefHeight(220);
-        log.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 12px;");
+        TextArea logArea = new TextArea();
+        logArea.setEditable(false);
+        logArea.setPrefHeight(220);
+        logArea.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 12px;");
 
         Label routeDisplay = new Label("—");
         routeDisplay.setWrapText(true);
@@ -337,132 +408,148 @@ public class EasyRideApp extends Application {
         statusCard.setEffect(createShadow());
         statusCard.getChildren().addAll(bold("Fahrzeug-Status"), routeDisplay);
 
-        // Mutable simulation state via arrays (lambda capture)
-        Vehicle[] sim = {null};
-        boolean[] autoOn = {false};
+        // Zustand der Simulation – Array-Trick nötig, da Lambda nur effektiv-finale Variablen liest
+        Vehicle[] simVehicle = {null};
+        boolean[] autoRunning = {false};
 
         Runnable drawRoute = () -> {
-            if (sim[0] == null || sim[0].getCurrentRoute() == null) { routeDisplay.setText("—"); return; }
-            Vehicle v = sim[0];
-            Route route = v.getCurrentRoute();
+            if (simVehicle[0] == null || simVehicle[0].getCurrentRoute() == null) {
+                routeDisplay.setText("—");
+                return;
+            }
+            Vehicle v = simVehicle[0];
             StringBuilder sb = new StringBuilder();
             sb.append("Fahrzeug #").append(v.getId()).append("  |  Im Fahrzeug: ");
-            if (v.getPassengers().isEmpty()) sb.append("niemand");
-            else sb.append(v.getPassengers().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
-            sb.append("\n\n");
-            List<RouteStop> stops = route.getStops();
-            for (int i = 0; i < stops.size(); i++) {
-                RouteStop s = stops.get(i);
-                String m = i < route.getCurrentStopIndex() ? "✓ " : (i == route.getCurrentStopIndex() ? "▶ " : "  ");
-                sb.append(m).append(s.getStation().getName());
-                if (!s.getPassengersToPickUp().isEmpty())
-                    sb.append("  ⬆[").append(s.getPassengersToPickUp().stream().map(Passenger::getName).collect(Collectors.joining(","))).append("]");
-                if (!s.getPassengersToDropOff().isEmpty())
-                    sb.append("  ⬇[").append(s.getPassengersToDropOff().stream().map(Passenger::getName).collect(Collectors.joining(","))).append("]");
-                sb.append('\n');
+            if (v.getPassengers().isEmpty()) {
+                sb.append("niemand");
+            } else {
+                sb.append(v.getPassengers().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
             }
+            sb.append("\n\n");
+            sb.append(buildRouteDisplay(v.getCurrentRoute()));
             routeDisplay.setText(sb.toString());
         };
 
-        Button setupBtn = btn("1.  Demo-Buchungen erstellen",     BLK, null);
-        Button stepBtn  = btn("2.  ▶  Einen Halt simulieren",    GRY, null);
+        Button setupBtn = btn("1.  Demo-Buchungen erstellen",    BLK, null);
+        Button stepBtn  = btn("2.  ▶  Einen Halt simulieren",   GRY, null);
         Button autoBtn  = btn("3.  ⚡  Auto-Simulation starten", GRN, null);
         stepBtn.setDisable(true);
         autoBtn.setDisable(true);
 
+        // Schritt 1: Fahrzeug zurücksetzen und Demo-Buchungen anlegen
         setupBtn.setOnAction(e -> {
             stopTimer();
-            autoOn[0] = false;
+            autoRunning[0] = false;
             autoBtn.setText("3.  ⚡  Auto-Simulation starten");
 
-            // Reset vehicle 1 completely
-            Vehicle v = Main.database.getVehicles().get(0);
-            sim[0] = v;
-            new ArrayList<>(v.getPassengers()).forEach(p -> v.removePassenger(p));
-            v.setCurrentRoute(null);
+            Vehicle vehicle = Main.getDatabase().getVehicles().get(0);
+            simVehicle[0] = vehicle;
 
-            Station alex      = station("Alexanderplatz");
-            Station zoo       = station("Zoologischer Garten");
-            Station kotti     = station("Kottbusser Tor");
-            Station potsdamer = station("Potsdamer Platz");
+            // Fahrzeug vollständig zurücksetzen
+            new ArrayList<>(vehicle.getPassengers()).forEach(vehicle::removePassenger);
+            vehicle.setCurrentRoute(null);
 
-            log.clear();
-            log.appendText("=== Simulation gestartet ===\n\n");
+            Station alex      = findStation("Alexanderplatz");
+            Station zoo       = findStation("Zoologischer Garten");
+            Station kotti     = findStation("Kottbusser Tor");
+            Station potsdamer = findStation("Potsdamer Platz");
+
+            logArea.clear();
+            logArea.appendText("=== Simulation gestartet ===\n\n");
 
             if (alex == null || zoo == null || kotti == null || potsdamer == null) {
-                log.appendText("FEHLER: Stationen nicht gefunden!\n"); return;
+                logArea.appendText("FEHLER: Stationen nicht gefunden!\n");
+                return;
             }
 
+            // Zwei Demo-Fahrgäste buchen
             Passenger anna = new Passenger(91, "anna@sim.de");
             Passenger bob  = new Passenger(92, "bob@sim.de");
 
-            log.appendText("Buchung 1: " + anna.getName() + "  " + alex.getName() + " -> " + zoo.getName() + "\n");
+            logArea.appendText("Buchung 1: " + anna.getName() + "  "
+                    + alex.getName() + " → " + zoo.getName() + "\n");
             boolean ok1 = bookingService.bookRide(alex, zoo, anna);
-            log.appendText(ok1 ? "  OK: Fahrzeug #" + anna.getAssignedVehicle().getId() + "\n"
-                               : "  FEHLER: Buchung fehlgeschlagen\n");
+            logArea.appendText(ok1
+                    ? "  OK: Fahrzeug #" + anna.getAssignedVehicle().getId() + "\n"
+                    : "  FEHLER: Buchung fehlgeschlagen\n");
 
-            log.appendText("\nBuchung 2: " + bob.getName() + "  " + kotti.getName() + " -> " + potsdamer.getName() + "\n");
+            logArea.appendText("\nBuchung 2: " + bob.getName() + "  "
+                    + kotti.getName() + " → " + potsdamer.getName() + "\n");
             boolean ok2 = bookingService.bookRide(kotti, potsdamer, bob);
-            log.appendText(ok2 ? "  OK: Fahrzeug #" + bob.getAssignedVehicle().getId() + "\n"
-                               : "  FEHLER: Buchung fehlgeschlagen\n");
+            logArea.appendText(ok2
+                    ? "  OK: Fahrzeug #" + bob.getAssignedVehicle().getId() + "\n"
+                    : "  FEHLER: Buchung fehlgeschlagen\n");
 
             if (ok1) {
-                log.appendText("\nWartezeit anna: " + timeService.getWaitingTime(anna) + " Min.\n");
-                log.appendText("Wartezeit bob:  " + timeService.getWaitingTime(bob)  + " Min.\n");
+                logArea.appendText("\nWartezeit anna: " + timeService.getWaitingTime(anna) + " Min.\n");
+                logArea.appendText("Wartezeit bob:  " + timeService.getWaitingTime(bob)  + " Min.\n");
             }
-            log.appendText("\n");
+            logArea.appendText("\n");
             drawRoute.run();
             stepBtn.setDisable(false);
             autoBtn.setDisable(false);
         });
 
+        // Schritt 2: Einzelnen Halt manuell simulieren
         stepBtn.setOnAction(e -> {
-            if (sim[0] == null || sim[0].getCurrentRoute() == null) return;
-            Route route = sim[0].getCurrentRoute();
-            RouteStop cur = route.getCurrentStop();
-            if (cur == null) {
-                log.appendText("Simulation beendet.\n");
-                stepBtn.setDisable(true); autoBtn.setDisable(true);
+            if (simVehicle[0] == null || simVehicle[0].getCurrentRoute() == null) return;
+
+            Route route = simVehicle[0].getCurrentRoute();
+            RouteStop currentStop = route.getCurrentStop();
+            if (currentStop == null) {
+                logArea.appendText("Simulation beendet.\n");
+                stepBtn.setDisable(true);
+                autoBtn.setDisable(true);
                 return;
             }
-            log.appendText("Haltepunkt: " + cur.getStation().getName() + "\n");
-            if (!cur.getPassengersToPickUp().isEmpty())
-                log.appendText("  Eingestiegen: " + cur.getPassengersToPickUp().stream().map(Passenger::getName).collect(Collectors.joining(", ")) + "\n");
-            if (!cur.getPassengersToDropOff().isEmpty())
-                log.appendText("  Ausgestiegen: " + cur.getPassengersToDropOff().stream().map(Passenger::getName).collect(Collectors.joining(", ")) + "\n");
 
-            bookingService.confirmArrival(sim[0], cur);
+            logArea.appendText("Haltepunkt: " + currentStop.getStation().getName() + "\n");
+            if (!currentStop.getPassengersToPickUp().isEmpty()) {
+                logArea.appendText("  Eingestiegen: " + currentStop.getPassengersToPickUp().stream()
+                        .map(Passenger::getName).collect(Collectors.joining(", ")) + "\n");
+            }
+            if (!currentStop.getPassengersToDropOff().isEmpty()) {
+                logArea.appendText("  Ausgestiegen: " + currentStop.getPassengersToDropOff().stream()
+                        .map(Passenger::getName).collect(Collectors.joining(", ")) + "\n");
+            }
+
+            fleetService.confirmArrival(simVehicle[0], currentStop);
             drawRoute.run();
 
-            if (sim[0].getCurrentRoute().getCurrentStop() == null) {
-                log.appendText("\nFahrzeug zurueck in der Zentrale.\n");
-                stepBtn.setDisable(true); autoBtn.setDisable(true);
-                stopTimer(); autoOn[0] = false;
+            // Prüfen ob die Simulation abgeschlossen ist
+            if (simVehicle[0].getCurrentRoute().getCurrentStop() == null) {
+                logArea.appendText("\nFahrzeug zurück in der Zentrale.\n");
+                stepBtn.setDisable(true);
+                autoBtn.setDisable(true);
+                stopTimer();
+                autoRunning[0] = false;
                 autoBtn.setText("3.  ⚡  Auto-Simulation starten");
             }
         });
 
+        // Schritt 3: Auto-Simulation – feuert alle 1,5 Sekunden einen Schritt
         autoBtn.setOnAction(e -> {
-            if (autoOn[0]) {
-                stopTimer(); autoOn[0] = false;
+            if (autoRunning[0]) {
+                stopTimer();
+                autoRunning[0] = false;
                 autoBtn.setText("3.  ⚡  Auto-Simulation starten");
                 return;
             }
-            autoOn[0] = true;
+            autoRunning[0] = true;
             autoBtn.setText("Stop Auto-Simulation");
             liveTimer = new Timeline(new KeyFrame(Duration.seconds(1.5), ev -> stepBtn.fire()));
             liveTimer.setCycleCount(Timeline.INDEFINITE);
             liveTimer.play();
         });
 
-        HBox btnRow = new HBox(8, setupBtn, stepBtn, autoBtn);
+        HBox buttonRow = new HBox(8, setupBtn, stepBtn, autoBtn);
         HBox.setHgrow(setupBtn, Priority.ALWAYS);
         HBox.setHgrow(stepBtn,  Priority.ALWAYS);
         HBox.setHgrow(autoBtn,  Priority.ALWAYS);
 
         root.getChildren().addAll(
-            title("Simulation"), btnRow, statusCard,
-            lbl("Log:"), log,
+            title("Simulation"), buttonRow, statusCard,
+            lbl("Log:"), logArea,
             back(ev -> { stopTimer(); showRoleSelectionScene(); })
         );
 
@@ -472,8 +559,9 @@ public class EasyRideApp extends Application {
         window.setScene(new Scene(scroll, 600, 720));
     }
 
-    // ── Utilities ────────────────────────────────────────────────────────────
+    // ── Hilfsmethoden (UI-Utilities) ────────────────────────────────────────────
 
+    /** Erstellt eine zentrierte Wrapper-Box mit dem App-Hintergrund. */
     private VBox centered(VBox card) {
         VBox root = new VBox(card);
         root.setAlignment(Pos.CENTER);
@@ -482,106 +570,140 @@ public class EasyRideApp extends Application {
         return root;
     }
 
-    private void show(VBox root, double w, double h) {
-        window.setScene(new Scene(root, w, h));
+    /** Setzt die Szene auf dem Hauptfenster und macht es sichtbar. */
+    private void show(VBox root, double width, double height) {
+        window.setScene(new Scene(root, width, height));
         window.show();
     }
 
+    /** Erstellt eine weiße Karten-Box mit Schatten für den Hauptinhalt. */
     private VBox card() {
-        VBox c = new VBox(10);
-        c.setMaxWidth(400);
-        c.setStyle(CARD);
-        c.setEffect(createShadow());
-        return c;
+        VBox card = new VBox(10);
+        card.setMaxWidth(400);
+        card.setStyle(CARD);
+        card.setEffect(createShadow());
+        return card;
     }
 
-    private Label title(String t) {
-        Label l = new Label(t);
-        l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
-        return l;
+    private Label title(String text) {
+        Label label = new Label(text);
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
+        return label;
     }
 
-    private Label bold(String t) {
-        Label l = new Label(t);
-        l.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        return l;
+    private Label bold(String text) {
+        Label label = new Label(text);
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        return label;
     }
 
-    private Label sub(String t) {
-        Label l = new Label(t);
-        l.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 13px;");
-        return l;
+    private Label sub(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 13px;");
+        return label;
     }
 
-    private Label lbl(String t) {
-        Label l = new Label(t);
-        l.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 12px;");
-        return l;
+    private Label lbl(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 12px;");
+        return label;
     }
 
     private Label errLabel() {
-        Label l = new Label("");
-        l.setStyle(ERR);
-        l.setWrapText(true);
-        return l;
+        Label label = new Label("");
+        label.setStyle(ERR);
+        label.setWrapText(true);
+        return label;
     }
 
     private Region spacer() {
-        Region r = new Region();
-        r.setPrefHeight(6);
-        return r;
+        Region region = new Region();
+        region.setPrefHeight(6);
+        return region;
     }
 
     private TextField field(String prompt) {
-        TextField tf = new TextField();
-        tf.setPromptText(prompt);
-        tf.setStyle(FIELD);
-        tf.setMaxWidth(Double.MAX_VALUE);
-        return tf;
+        TextField field = new TextField();
+        field.setPromptText(prompt);
+        field.setStyle(FIELD);
+        field.setMaxWidth(Double.MAX_VALUE);
+        return field;
     }
 
     private ComboBox<String> combo(List<String> items, String prompt) {
-        ComboBox<String> cb = new ComboBox<>();
-        cb.getItems().addAll(items);
-        cb.setPromptText(prompt);
-        cb.setStyle(FIELD);
-        cb.setMaxWidth(Double.MAX_VALUE);
-        return cb;
+        ComboBox<String> combo = new ComboBox<>();
+        combo.getItems().addAll(items);
+        combo.setPromptText(prompt);
+        combo.setStyle(FIELD);
+        combo.setMaxWidth(Double.MAX_VALUE);
+        return combo;
     }
 
     private Button btn(String text, String style,
-                       javafx.event.EventHandler<javafx.event.ActionEvent> h) {
-        Button b = new Button(text);
-        b.setStyle(style);
-        b.setMaxWidth(Double.MAX_VALUE);
-        b.setPrefHeight(38);
-        if (h != null) b.setOnAction(h);
-        return b;
+                       javafx.event.EventHandler<javafx.event.ActionEvent> handler) {
+        Button button = new Button(text);
+        button.setStyle(style);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setPrefHeight(38);
+        if (handler != null) button.setOnAction(handler);
+        return button;
     }
 
-    private Button back(javafx.event.EventHandler<javafx.event.ActionEvent> h) {
-        Button b = new Button("← Zurück");
-        b.setStyle("-fx-background-color: transparent; -fx-text-fill: #6C757D; -fx-cursor: hand; -fx-font-weight: bold;");
-        b.setOnAction(h);
-        return b;
+    private Button back(javafx.event.EventHandler<javafx.event.ActionEvent> handler) {
+        Button button = new Button("← Zurück");
+        button.setStyle("-fx-background-color: transparent; -fx-text-fill: #6C757D; -fx-cursor: hand; -fx-font-weight: bold;");
+        button.setOnAction(handler);
+        return button;
     }
 
-    private Station station(String name) {
-        return Main.database.getStations().stream()
+    /** Sucht eine Haltestelle im DataStore anhand ihres Namens (Groß-/Kleinschreibung egal). */
+    private Station findStation(String name) {
+        return Main.getDatabase().getStations().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(name))
-                .findFirst().orElse(null);
+                .findFirst()
+                .orElse(null);
     }
 
+    /** Stoppt den Live-Timer, falls einer läuft. */
     private void stopTimer() {
-        if (liveTimer != null) { liveTimer.stop(); liveTimer = null; }
+        if (liveTimer != null) {
+            liveTimer.stop();
+            liveTimer = null;
+        }
     }
 
+    /** Erstellt den leichten Schatten, der unter den Karten-Boxen erscheint. */
     private DropShadow createShadow() {
-        DropShadow s = new DropShadow();
-        s.setColor(Color.rgb(0, 0, 0, 0.08));
-        s.setRadius(12);
-        s.setOffsetY(4);
-        return s;
+        DropShadow shadow = new DropShadow();
+        shadow.setColor(Color.rgb(0, 0, 0, 0.08));
+        shadow.setRadius(12);
+        shadow.setOffsetY(4);
+        return shadow;
+    }
+
+    /**
+     * Erstellt eine textuelle Übersicht aller Halte einer Route.
+     * Bereits besuchte Halte werden mit ✓, der aktuelle mit ▶ markiert.
+     */
+    private String buildRouteDisplay(Route route) {
+        StringBuilder sb = new StringBuilder();
+        List<RouteStop> stops = route.getStops();
+        for (int i = 0; i < stops.size(); i++) {
+            RouteStop stop = stops.get(i);
+            String marker = i < route.getCurrentStopIndex() ? "✓ "
+                          : (i == route.getCurrentStopIndex() ? "▶ " : "  ");
+            sb.append(marker).append(stop.getStation().getName());
+            if (!stop.getPassengersToPickUp().isEmpty()) {
+                sb.append("  ⬆").append(stop.getPassengersToPickUp().stream()
+                        .map(Passenger::getName).collect(Collectors.joining(",")));
+            }
+            if (!stop.getPassengersToDropOff().isEmpty()) {
+                sb.append("  ⬇").append(stop.getPassengersToDropOff().stream()
+                        .map(Passenger::getName).collect(Collectors.joining(",")));
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
     }
 
     public static void main(String[] args) { launch(args); }

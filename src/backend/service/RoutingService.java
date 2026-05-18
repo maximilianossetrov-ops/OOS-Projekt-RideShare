@@ -6,32 +6,53 @@ import repository.DataStore;
 import java.time.LocalDateTime;
 import java.util.*;
 
+/**
+ * Implementierung des IRouteService mit Dijkstra-Algorithmus.
+ *
+ * Für eine Erstbuchung wird eine vollständige Route berechnet:
+ *   Depot → Abholhaltestelle → Zielhaltestelle → Depot
+ *
+ * Bei einer Folgebuchung werden die neuen Halte so in die bestehende Route
+ * eingefügt, dass der zusätzliche Umweg minimal bleibt (Greedy-Heuristik).
+ */
 public class RoutingService implements IRouteService {
+
     private final DataStore dataStore;
+
+    // Statischer Zähler für eindeutige Routen-IDs
     private static int routeIdCounter = 0;
 
     public RoutingService(DataStore dataStore) {
         this.dataStore = dataStore;
     }
 
-    // Builds: depot → ... → start (pickup) → ... → target (dropoff) → ... → depot
+    // -------------------------------------------------------------------------
+    // Öffentliche Methoden (Interface-Implementierung)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Erstellt eine komplett neue Route für ein Fahrzeug ohne aktive Route.
+     * Pfad: Depot → ... → Abholpunkt → ... → Zielpunkt → ... → Depot
+     */
     @Override
     public Route calcInitialRoute(Vehicle vehicle, Station start, Station target, Passenger passenger) {
         List<Connection> connections = dataStore.getConnections();
         Station depot = findDepot();
         if (depot == null) return null;
 
-        List<Station> toStart  = dijkstra(depot,  start,  connections);
-        List<Station> toTarget = dijkstra(start,  target, connections);
-        List<Station> toDepot  = dijkstra(target, depot,  connections);
+        // Drei Teilstrecken mit Dijkstra berechnen
+        List<Station> depotToStart  = findShortestPath(depot,  start,  connections);
+        List<Station> startToTarget = findShortestPath(start,  target, connections);
+        List<Station> targetToDepot = findShortestPath(target, depot,  connections);
 
-        if (toStart == null || toTarget == null || toDepot == null) return null;
+        if (depotToStart == null || startToTarget == null || targetToDepot == null) return null;
 
-        // Merge paths, skipping duplicate boundary stations
-        List<Station> fullPath = new ArrayList<>(toStart);
-        fullPath.addAll(toTarget.subList(1, toTarget.size()));
-        fullPath.addAll(toDepot.subList(1, toDepot.size()));
+        // Teilpfade zusammenführen – doppelte Grenzstationen überspringen
+        List<Station> fullPath = new ArrayList<>(depotToStart);
+        fullPath.addAll(startToTarget.subList(1, startToTarget.size()));
+        fullPath.addAll(targetToDepot.subList(1, targetToDepot.size()));
 
+        // Route aus dem Pfad aufbauen und Ankunftszeiten berechnen
         Route route = new Route(++routeIdCounter, vehicle);
         LocalDateTime time = LocalDateTime.now();
 
@@ -39,68 +60,81 @@ public class RoutingService implements IRouteService {
             Station station = fullPath.get(i);
             RouteStop stop = new RouteStop(station);
 
-            if (station.equals(start))  stop.getPassengersToPickUp().add(passenger);
-            if (station.equals(target)) stop.getPassengersToDropOff().add(passenger);
+            if (station.equals(start))  stop.addPassengerToPickUp(passenger);
+            if (station.equals(target)) stop.addPassengerToDropOff(passenger);
 
             if (i > 0) {
-                time = time.plusMinutes(directConnectionTime(fullPath.get(i - 1), station, connections));
+                // Fahrzeit von der vorherigen zur aktuellen Station addieren
+                time = time.plusMinutes(shortestTravelTime(fullPath.get(i - 1), station, connections));
             }
             stop.setPlannedArrivalTime(time);
-            route.getStops().add(stop);
+            route.addStop(stop);
         }
         return route;
     }
 
-    // Inserts pickup and dropoff stops at optimal positions, always before the final depot stop.
+    /**
+     * Fügt einen neuen Fahrgast in eine bestehende Route ein.
+     * Einstieg- und Ausstiegshalt werden an der Position eingefügt,
+     * die den Gesamtumweg am geringsten erhöht.
+     * Gibt null zurück, wenn die Fahrzeugkapazität überschritten würde.
+     */
     @Override
     public Route calcNewRoute(Route currentRoute, Passenger passenger, Station pickupStation, Station dropoffStation) {
         List<Connection> connections = dataStore.getConnections();
+
+        // Arbeitskopie der Halteliste erstellen, damit die ursprüngliche Route unverändert bleibt
         List<RouteStop> stops = new ArrayList<>(currentRoute.getStops());
-        int fromIdx = currentRoute.getCurrentStopIndex();
+        int fromIndex = currentRoute.getCurrentStopIndex();
 
-        // Keep the depot stop at the end — insert all new stops before it
-        boolean endsAtDepot = !stops.isEmpty()
-                && Boolean.TRUE.equals(stops.get(stops.size() - 1).getStation().getIsDepot());
+        // Depothalt am Ende nicht verschieben – neue Halte kommen immer davor
+        boolean endsAtDepot = !stops.isEmpty() && stops.get(stops.size() - 1).getStation().isDepot();
+        int insertLimit = endsAtDepot ? stops.size() - 1 : stops.size();
 
-        int pickupMax  = endsAtDepot ? stops.size() - 1 : stops.size();
-        int pickupPos  = findBestInsertPosition(stops, fromIdx + 1, pickupMax, pickupStation, connections);
+        // Optimale Einfügeposition für den Abholhalt suchen
+        int pickupPos = findBestInsertPosition(stops, fromIndex + 1, insertLimit, pickupStation, connections);
         RouteStop pickupStop = new RouteStop(pickupStation);
-        pickupStop.getPassengersToPickUp().add(passenger);
+        pickupStop.addPassengerToPickUp(passenger);
         stops.add(pickupPos, pickupStop);
 
-        // After the pickup insert the depot (if any) is now at stops.size()-1
-        int dropoffMax = endsAtDepot ? stops.size() - 1 : stops.size();
-        int dropoffPos = findBestInsertPosition(stops, pickupPos + 1, dropoffMax, dropoffStation, connections);
+        // Jetzt Abholhalt eingefügt → neues Limit für den Abgabehalt berechnen
+        int dropoffLimit = endsAtDepot ? stops.size() - 1 : stops.size();
+        int dropoffPos = findBestInsertPosition(stops, pickupPos + 1, dropoffLimit, dropoffStation, connections);
         RouteStop dropoffStop = new RouteStop(dropoffStation);
-        dropoffStop.getPassengersToDropOff().add(passenger);
+        dropoffStop.addPassengerToDropOff(passenger);
         stops.add(dropoffPos, dropoffStop);
 
-        // Capacity check: simulate occupancy through all future stops
+        // Kapazitätsprüfung: Besetzung durch alle zukünftigen Halte simulieren
         Vehicle vehicle = currentRoute.getVehicle();
         int occupancy = vehicle.getPassengers().size();
-        for (int i = fromIdx; i < stops.size(); i++) {
+        for (int i = fromIndex; i < stops.size(); i++) {
             occupancy += stops.get(i).getPassengersToPickUp().size();
-            if (occupancy > vehicle.getMaxCapacity()) return null; // would overflow
+            if (occupancy > vehicle.getMaxCapacity()) return null;
             occupancy -= stops.get(i).getPassengersToDropOff().size();
         }
 
-        recalcArrivalTimes(stops, fromIdx, connections);
+        // Ankunftszeiten neu berechnen und Route aktualisieren
+        recalcArrivalTimes(stops, fromIndex, connections);
         currentRoute.setStops(stops);
         return currentRoute;
     }
 
     // -------------------------------------------------------------------------
-    // Private helpers
+    // Private Hilfsmethoden
     // -------------------------------------------------------------------------
 
+    /** Sucht das Depot im Streckennetz. */
     private Station findDepot() {
         return dataStore.getStations().stream()
-                .filter(s -> Boolean.TRUE.equals(s.getIsDepot()))
-                .findFirst().orElse(null);
+                .filter(Station::isDepot)
+                .findFirst()
+                .orElse(null);
     }
 
-    // Finds the insertion index (between stops[i-1] and stops[i]) that adds the
-    // least extra travel time. startIdx: first position to consider; maxPos: last.
+    /**
+     * Sucht die optimale Einfügeposition für eine neue Station zwischen
+     * startIdx und maxPos. Bewertet jede mögliche Position anhand des Umwegs.
+     */
     private int findBestInsertPosition(List<RouteStop> stops, int startIdx, int maxPos,
                                        Station station, List<Connection> connections) {
         int safeStart = Math.max(1, startIdx);
@@ -112,16 +146,18 @@ public class RoutingService implements IRouteService {
         for (int i = safeStart; i <= maxPos; i++) {
             Station from = stops.get(i - 1).getStation();
             int detour;
+
             if (i == stops.size()) {
-                // Appending at the very end (no next stop)
-                detour = shortestTime(from, station, connections);
+                // Einfügen am Ende: nur Anfahrtskosten berücksichtigen
+                detour = shortestTravelTime(from, station, connections);
             } else {
+                // Umweg = (from→new) + (new→to) − (from→to)
                 Station to = stops.get(i).getStation();
-                int direct = shortestTime(from, to, connections);
-                detour = shortestTime(from, station, connections)
-                       + shortestTime(station, to, connections)
-                       - direct;
+                detour = shortestTravelTime(from, station, connections)
+                       + shortestTravelTime(station, to, connections)
+                       - shortestTravelTime(from, to, connections);
             }
+
             if (detour < minDetour) {
                 minDetour = detour;
                 bestPos = i;
@@ -130,95 +166,94 @@ public class RoutingService implements IRouteService {
         return bestPos;
     }
 
+    /**
+     * Berechnet die geplanten Ankunftszeiten aller Halte ab fromIdx neu.
+     * Nötig nach jeder Änderung an der Halteliste.
+     */
     private void recalcArrivalTimes(List<RouteStop> stops, int fromIdx, List<Connection> connections) {
         if (stops.isEmpty() || fromIdx >= stops.size()) return;
-        LocalDateTime time = LocalDateTime.now(); // recalculate relative to now
+
+        LocalDateTime time = LocalDateTime.now();
         stops.get(fromIdx).setPlannedArrivalTime(time);
 
         for (int i = fromIdx + 1; i < stops.size(); i++) {
-            int t = shortestTime(stops.get(i - 1).getStation(), stops.get(i).getStation(), connections);
-            time = time.plusMinutes(t == Integer.MAX_VALUE ? 60 : t);
+            int travelTime = shortestTravelTime(stops.get(i - 1).getStation(), stops.get(i).getStation(), connections);
+            // Fallback: 60 Minuten, wenn keine Verbindung gefunden (sollte bei korrektem Netz nicht vorkommen)
+            time = time.plusMinutes(travelTime == Integer.MAX_VALUE ? 60 : travelTime);
             stops.get(i).setPlannedArrivalTime(time);
         }
     }
 
-    // Returns the full station list for the shortest path from start to end.
-    private List<Station> dijkstra(Station start, Station end, List<Connection> connections) {
-        Map<Station, Integer> dist = new HashMap<>();
-        Map<Station, Station> prev = new HashMap<>();
-        PriorityQueue<Station> pq = new PriorityQueue<>(
-                Comparator.comparingInt(s -> dist.getOrDefault(s, Integer.MAX_VALUE)));
+    /**
+     * Führt den Dijkstra-Algorithmus aus und gibt den kürzesten Pfad
+     * als geordnete Stationsliste zurück. Gibt null zurück, wenn kein Pfad existiert.
+     */
+    private List<Station> findShortestPath(Station start, Station end, List<Connection> connections) {
+        DijkstraResult result = runDijkstra(start, connections);
 
-        dist.put(start, 0);
-        pq.add(start);
+        if (result.distances().getOrDefault(end, Integer.MAX_VALUE) == Integer.MAX_VALUE) return null;
 
-        while (!pq.isEmpty()) {
-            Station curr = pq.poll();
-            if (curr.equals(end)) break;
-            int currDist = dist.getOrDefault(curr, Integer.MAX_VALUE);
-            if (currDist == Integer.MAX_VALUE) break;
-
-            for (Connection c : connections) {
-                if (c.connects(curr)) {
-                    Station neighbor = c.getDestinationFrom(curr);
-                    int newDist = currDist + c.getTravelTimeMinutes();
-                    if (newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
-                        dist.put(neighbor, newDist);
-                        prev.put(neighbor, curr);
-                        pq.remove(neighbor);
-                        pq.add(neighbor);
-                    }
-                }
-            }
-        }
-
-        if (!dist.containsKey(end) || dist.get(end) == Integer.MAX_VALUE) return null;
-
+        // Pfad rückwärts rekonstruieren
         List<Station> path = new ArrayList<>();
-        for (Station s = end; s != null; s = prev.get(s)) {
+        for (Station s = end; s != null; s = result.predecessors().get(s)) {
             path.add(0, s);
         }
         return path;
     }
 
-    // Returns the shortest travel time in minutes between any two stations.
-    private int shortestTime(Station from, Station to, List<Connection> connections) {
+    /**
+     * Gibt die kürzeste Fahrzeit in Minuten zwischen zwei Stationen zurück.
+     * Nutzt den gleichen Dijkstra-Kern wie findShortestPath, um Code-Duplizierung zu vermeiden.
+     */
+    private int shortestTravelTime(Station from, Station to, List<Connection> connections) {
         if (from.equals(to)) return 0;
-        Map<Station, Integer> dist = new HashMap<>();
-        PriorityQueue<Station> pq = new PriorityQueue<>(
-                Comparator.comparingInt(s -> dist.getOrDefault(s, Integer.MAX_VALUE)));
-        dist.put(from, 0);
-        pq.add(from);
+        return runDijkstra(from, connections).distances().getOrDefault(to, Integer.MAX_VALUE);
+    }
 
-        while (!pq.isEmpty()) {
-            Station curr = pq.poll();
-            if (curr.equals(to)) return dist.get(to);
-            int currDist = dist.getOrDefault(curr, Integer.MAX_VALUE);
-            if (currDist == Integer.MAX_VALUE) break;
+    /**
+     * Kernimplementierung des Dijkstra-Algorithmus.
+     * Berechnet von der Startstation aus die kürzesten Wege zu allen erreichbaren Stationen.
+     *
+     * @return Distanz- und Vorgänger-Maps, aus denen Pfade rekonstruiert werden können
+     */
+    private DijkstraResult runDijkstra(Station start, List<Connection> connections) {
+        Map<Station, Integer> distances = new HashMap<>();
+        Map<Station, Station> predecessors = new HashMap<>();
 
-            for (Connection c : connections) {
-                if (c.connects(curr)) {
-                    Station neighbor = c.getDestinationFrom(curr);
-                    int newDist = currDist + c.getTravelTimeMinutes();
-                    if (newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
-                        dist.put(neighbor, newDist);
-                        pq.remove(neighbor);
-                        pq.add(neighbor);
-                    }
+        // PriorityQueue sortiert Stationen nach ihrer aktuell bekannten Distanz
+        PriorityQueue<Station> queue = new PriorityQueue<>(
+                Comparator.comparingInt(s -> distances.getOrDefault(s, Integer.MAX_VALUE)));
+
+        distances.put(start, 0);
+        queue.add(start);
+
+        while (!queue.isEmpty()) {
+            Station current = queue.poll();
+            int currentDist = distances.getOrDefault(current, Integer.MAX_VALUE);
+            if (currentDist == Integer.MAX_VALUE) break; // Restliche Knoten nicht erreichbar
+
+            for (Connection connection : connections) {
+                if (!connection.connects(current)) continue;
+
+                Station neighbor = connection.getDestinationFrom(current);
+                int newDist = currentDist + connection.getTravelTimeMinutes();
+
+                if (newDist < distances.getOrDefault(neighbor, Integer.MAX_VALUE)) {
+                    distances.put(neighbor, newDist);
+                    predecessors.put(neighbor, current);
+                    // Priorität neu setzen: alten Eintrag entfernen, aktualisierten einfügen
+                    queue.remove(neighbor);
+                    queue.add(neighbor);
                 }
             }
         }
-        return Integer.MAX_VALUE;
+        return new DijkstraResult(distances, predecessors);
     }
 
-    // Returns the direct edge time between two adjacent stops in a Dijkstra path.
-    private int directConnectionTime(Station from, Station to, List<Connection> connections) {
-        for (Connection c : connections) {
-            if (c.connects(from)) {
-                Station dest = c.getDestinationFrom(from);
-                if (dest != null && dest.equals(to)) return c.getTravelTimeMinutes();
-            }
-        }
-        return 0;
-    }
+    /**
+     * Hilfsobjekt, das das Ergebnis einer Dijkstra-Ausführung kapselt.
+     * Enthält die Distanzen von der Startstation sowie die Vorgänger-Map
+     * zur Pfadrekonstruktion.
+     */
+    private record DijkstraResult(Map<Station, Integer> distances, Map<Station, Station> predecessors) {}
 }

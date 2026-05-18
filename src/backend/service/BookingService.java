@@ -1,54 +1,66 @@
 package service;
 
-import model.*;
-import repository.DataStore;
+import model.Passenger;
+import model.Route;
+import model.Station;
+import model.Vehicle;
 
+/**
+ * Implementierung des IBookingService.
+ * Koordiniert den Buchungsvorgang: Fahrzeug auswählen, Route berechnen
+ * und dem Fahrgast alle nötigen Informationen zuweisen.
+ *
+ * Die Abhängigkeiten zu IFleetService und IRouteService werden von außen
+ * übergeben (Dependency Injection), damit diese Klasse nicht selbst entscheidet,
+ * welche Implementierung verwendet wird.
+ */
 public class BookingService implements IBookingService {
-    private final RoutingService routingService;
-    private final FleetService fleetService;
 
-    public BookingService(DataStore dataStore) {
-        this.routingService = new RoutingService(dataStore);
-        this.fleetService = new FleetService(dataStore);
+    private final IRouteService routeService;
+    private final IFleetService fleetService;
+
+    public BookingService(IRouteService routeService, IFleetService fleetService) {
+        this.routeService = routeService;
+        this.fleetService = fleetService;
     }
 
+    /**
+     * Bucht eine Fahrt für den Fahrgast:
+     * 1. Freies Fahrzeug suchen
+     * 2. Route berechnen (neu oder erweitert)
+     * 3. Fahrgast dem Fahrzeug zuweisen und Buchungsdetails setzen
+     */
     @Override
-    public boolean bookRide(Station start, Station target, Passenger p) {
-        Vehicle v = fleetService.getVehicleForPassenger(p);
-        if (v == null) {
-            System.out.println("Fehler: Kein freies Fahrzeug verfügbar!");
+    public boolean bookRide(Station start, Station target, Passenger passenger) {
+        Vehicle vehicle = fleetService.getVehicleForPassenger(passenger);
+        if (vehicle == null) {
+            System.out.println("Buchung fehlgeschlagen: Kein freies Fahrzeug verfügbar.");
             return false;
         }
 
-        Route newRoute;
-        if (v.getCurrentRoute() == null) {
-            newRoute = routingService.calcInitialRoute(v, start, target, p);
+        // Neue Route berechnen – je nachdem ob das Fahrzeug schon unterwegs ist
+        Route route;
+        if (vehicle.getCurrentRoute() == null) {
+            route = routeService.calcInitialRoute(vehicle, start, target, passenger);
         } else {
-            newRoute = routingService.calcNewRoute(v.getCurrentRoute(), p, start, target);
+            route = routeService.calcNewRoute(vehicle.getCurrentRoute(), passenger, start, target);
         }
 
-        if (newRoute == null) {
-            System.out.println("Fehler: Route konnte nicht berechnet werden.");
+        if (route == null) {
+            System.out.println("Buchung fehlgeschlagen: Keine Route berechenbar.");
             return false;
         }
 
-        v.setCurrentRoute(newRoute);
-        v.addPassenger(p); // adds to vehicle list; sets state IN_TRANSIT
+        // Fahrzeug und Fahrgast verknüpfen
+        vehicle.setCurrentRoute(route);
+        vehicle.addPassenger(passenger);
+        passenger.setAssignedVehicle(vehicle);
+        passenger.setPickupStation(start);
+        passenger.setDropoffStation(target);
 
-        // Link the passenger back to their vehicle and journey endpoints
-        // so that TimeService can answer waiting-time / remaining-time queries.
-        p.setAssignedVehicle(v);
-        p.setPickupStation(start);
-        p.setDropoffStation(target);
-
-        System.out.println("Erfolg! " + p.getName() + " (" + p.getEmail() + ")"
-                + " → Fahrzeug " + v.getId()
-                + " | Start: " + start.getName()
-                + " | Ziel: " + target.getName());
+        System.out.println("Buchung erfolgreich: " + passenger.getName()
+                + " → Fahrzeug #" + vehicle.getId()
+                + " | " + start.getName() + " → " + target.getName());
         return true;
-    }
-
-    public void confirmArrival(Vehicle v, RouteStop stop) {
-        fleetService.confirmArrival(v, stop);
     }
 }
