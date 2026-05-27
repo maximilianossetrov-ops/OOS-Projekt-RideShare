@@ -74,24 +74,45 @@ public class EasyRideApp extends Application {
     // ── SZENE 2: Kunden-Anmeldung ───────────────────────────────────────────────
 
     private void showCustomerAuthScene() {
+        showCustomerAuthScene(null);
+    }
+
+    private void showCustomerAuthScene(String successMsg) {
         VBox card = card();
+        TextField emailField = field("E-Mail Adresse");
+        Label errLabel = errLabel();
+
+        Label successLabel = new Label(successMsg != null ? successMsg : "");
+        successLabel.setStyle(OKCLR);
+        successLabel.setWrapText(true);
+        successLabel.setVisible(successMsg != null);
+
         card.getChildren().addAll(
-            title("Kunden-Bereich"),
-            btn("Einloggen (Demo)", BLK, e -> {
-                List<Passenger> all = Main.getDatabase().getRegisteredPassengers();
-                if (all.isEmpty()) {
-                    loggedInPassenger = new Passenger(1, "demo@easyride.de");
-                    Main.getDatabase().addPassenger(loggedInPassenger);
-                } else {
-                    loggedInPassenger = all.get(0);
+            title("Einloggen"),
+            successLabel,
+            emailField, errLabel,
+            btn("Einloggen", BLK, e -> {
+                String email = emailField.getText().trim();
+                if (email.isEmpty()) {
+                    errLabel.setText("Bitte eine E-Mail-Adresse eingeben!");
+                    return;
                 }
+                Passenger found = Main.getDatabase().getRegisteredPassengers().stream()
+                        .filter(p -> p.getEmail().equalsIgnoreCase(email))
+                        .findFirst()
+                        .orElse(null);
+                if (found == null) {
+                    errLabel.setText("Diese E-Mail ist nicht registriert. Bitte registriere dich zuerst.");
+                    return;
+                }
+                loggedInPassenger = found;
                 showBookingScene();
             }),
             lbl("── oder ──"),
             btn("Neu registrieren", GRY, e -> showRegistrationScene()),
             back(e -> showRoleSelectionScene())
         );
-        show(centered(card), 460, 360);
+        show(centered(card), 460, 420);
     }
 
     // ── SZENE 2.5: Registrierung ────────────────────────────────────────────────
@@ -116,9 +137,8 @@ public class EasyRideApp extends Application {
                     return;
                 }
                 int newId = Main.getDatabase().getRegisteredPassengers().size() + 1;
-                loggedInPassenger = new Passenger(newId, email);
-                Main.getDatabase().addPassenger(loggedInPassenger);
-                showBookingScene();
+                Main.getDatabase().addPassenger(new Passenger(newId, email));
+                showCustomerAuthScene("Erfolgreich registriert! Bitte melde dich jetzt an.");
             }),
             back(e -> showCustomerAuthScene())
         );
