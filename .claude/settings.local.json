@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\admin\\\\IdeaProjects\\\\OOS-Projekt-RideShare\" -Recurse -Directory | Select-Object -First 40 | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\admin\\\\IdeaProjects\\\\OOS-Projekt-RideShare\\\\src\\\\backend\" -Recurse -File | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\admin\\\\IdeaProjects\\\\OOS-Projekt-RideShare\\\\\", \"\"\\) } | Sort-Object)"
+    ]
+  }
+}
