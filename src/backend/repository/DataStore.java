@@ -9,12 +9,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Zentraler In-Memory-Datenspeicher, der alle persistenten Objekte des Systems hält.
- * Da wir keine echte Datenbank nutzen, übernimmt diese Klasse die Rolle
- * eines einfachen Repositories. Die Getter liefern unveränderliche Listen zurück,
- * damit externe Klassen die Daten nicht direkt manipulieren können.
- */
 public class DataStore {
 
     private final List<Passenger> registeredPassengers;
@@ -27,9 +21,8 @@ public class DataStore {
         this.vehicles = new ArrayList<>();
         this.stations = new ArrayList<>();
         this.connections = new ArrayList<>();
+        this.registeredPassengers.addAll(PassengerRepository.load());
     }
-
-    // --- Lesezugriff (unveränderliche Sichten) ---
 
     public List<Passenger> getRegisteredPassengers() {
         return Collections.unmodifiableList(registeredPassengers);
@@ -47,21 +40,12 @@ public class DataStore {
         return Collections.unmodifiableList(connections);
     }
 
-    // --- Schreibzugriff über dedizierte Methoden ---
-
     public void addPassenger(Passenger passenger) {
         registeredPassengers.add(passenger);
+        PassengerRepository.save(registeredPassengers);
     }
 
-    public void addVehicle(Vehicle vehicle) {
-        vehicles.add(vehicle);
-    }
-
-    public void addStation(Station station) {
-        stations.add(station);
-    }
-
-    public void addConnection(Connection connection) {
-        connections.add(connection);
-    }
+    public void addVehicle(Vehicle vehicle) { vehicles.add(vehicle); }
+    public void addStation(Station station) { stations.add(station); }
+    public void addConnection(Connection connection) { connections.add(connection); }
 }

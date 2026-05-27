@@ -5,15 +5,6 @@ import model.Route;
 import model.Station;
 import model.Vehicle;
 
-/**
- * Implementierung des IBookingService.
- * Koordiniert den Buchungsvorgang: Fahrzeug auswählen, Route berechnen
- * und dem Fahrgast alle nötigen Informationen zuweisen.
- *
- * Die Abhängigkeiten zu IFleetService und IRouteService werden von außen
- * übergeben (Dependency Injection), damit diese Klasse nicht selbst entscheidet,
- * welche Implementierung verwendet wird.
- */
 public class BookingService implements IBookingService {
 
     private final IRouteService routeService;
@@ -24,12 +15,6 @@ public class BookingService implements IBookingService {
         this.fleetService = fleetService;
     }
 
-    /**
-     * Bucht eine Fahrt für den Fahrgast:
-     * 1. Freies Fahrzeug suchen
-     * 2. Route berechnen (neu oder erweitert)
-     * 3. Fahrgast dem Fahrzeug zuweisen und Buchungsdetails setzen
-     */
     @Override
     public boolean bookRide(Station start, Station target, Passenger passenger) {
         Vehicle vehicle = fleetService.getVehicleForPassenger(passenger);
@@ -38,7 +23,6 @@ public class BookingService implements IBookingService {
             return false;
         }
 
-        // Neue Route berechnen – je nachdem ob das Fahrzeug schon unterwegs ist
         Route route;
         if (vehicle.getCurrentRoute() == null) {
             route = routeService.calcInitialRoute(vehicle, start, target, passenger);
@@ -51,7 +35,6 @@ public class BookingService implements IBookingService {
             return false;
         }
 
-        // Fahrzeug und Fahrgast verknüpfen
         vehicle.setCurrentRoute(route);
         vehicle.addPassenger(passenger);
         passenger.setAssignedVehicle(vehicle);

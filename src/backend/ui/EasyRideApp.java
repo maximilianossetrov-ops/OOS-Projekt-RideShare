@@ -22,35 +22,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Haupt-UI-Klasse der EasyRide-Anwendung (JavaFX).
- *
- * Verwaltet die Szenennavigation zwischen:
- *   1. Rollenauswahl (Kunde / Fahrer / Simulation)
- *   2. Kunden-Anmeldung und Registrierung
- *   3. Buchungsmaske
- *   4. Live-Fahrstatus
- *   5. Fahrer-Tablet
- *   6. Simulationsmodus
- *
- * Die Services werden beim Start über Dependency Injection erzeugt –
- * die UI-Klasse kennt nur die Interfaces, nicht die konkreten Klassen.
- */
 public class EasyRideApp extends Application {
 
-    // Fenster-Referenz und Service-Abhängigkeiten (über Interfaces)
     private Stage window;
     private IBookingService bookingService;
     private IFleetService fleetService;
     private ITimeService timeService;
-
-    // Aktuell eingeloggter Fahrgast
     private Passenger loggedInPassenger;
-
-    // Timer für die regelmäßige Aktualisierung der Live-Statusanzeige
     private Timeline liveTimer;
 
-    // ── Style-Konstanten ────────────────────────────────────────────────────────
+    // Style-Konstanten
     private static final String BG    = "-fx-background-color: #F8F9FA;";
     private static final String CARD  = "-fx-background-color: white; -fx-background-radius: 12px; -fx-padding: 24px;";
     private static final String BLK   = "-fx-background-color: #212529; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8px; -fx-cursor: hand;";
@@ -62,22 +43,15 @@ public class EasyRideApp extends Application {
     private static final String BLUE  = "-fx-text-fill: #0D6EFD; -fx-font-size: 14px; -fx-font-weight: bold;";
     private static final String GREEN = "-fx-text-fill: #28A745; -fx-font-size: 14px; -fx-font-weight: bold;";
 
-    // ── Anwendungsstart ─────────────────────────────────────────────────────────
+    // ── SZENE 0: Start ──────────────────────────────────────────────────────────
 
-    /**
-     * JavaFX-Einstiegspunkt. Erzeugt die Services und startet die erste Szene.
-     * Die Services werden hier per Dependency Injection zusammengesetzt.
-     */
     @Override
     public void start(Stage stage) {
         window = stage;
-
-        // Services zusammensetzen – die UI hängt nur von den Interfaces ab
         fleetService   = new FleetService(Main.getDatabase());
         IRouteService routeService = new RoutingService(Main.getDatabase());
         bookingService = new BookingService(routeService, fleetService);
         timeService    = new TimeService();
-
         window.setTitle("EasyRide – Smart Mobility");
         showRoleSelectionScene();
     }
@@ -104,7 +78,6 @@ public class EasyRideApp extends Application {
         card.getChildren().addAll(
             title("Kunden-Bereich"),
             btn("Einloggen (Demo)", BLK, e -> {
-                // Demo-Login: ersten registrierten Fahrgast nehmen oder neu anlegen
                 List<Passenger> all = Main.getDatabase().getRegisteredPassengers();
                 if (all.isEmpty()) {
                     loggedInPassenger = new Passenger(1, "demo@easyride.de");
@@ -136,7 +109,6 @@ public class EasyRideApp extends Application {
                     errLabel.setText("Bitte eine E-Mail-Adresse eingeben!");
                     return;
                 }
-                // Prüfen, ob die E-Mail-Adresse bereits vergeben ist
                 boolean alreadyExists = Main.getDatabase().getRegisteredPassengers().stream()
                         .anyMatch(p -> p.getEmail().equalsIgnoreCase(email));
                 if (alreadyExists) {
@@ -162,7 +134,7 @@ public class EasyRideApp extends Application {
         Label welcomeLabel = new Label("Hallo, " + loggedInPassenger.getName() + " 👋");
         welcomeLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #495057;");
 
-        // Nur reguläre Haltestellen anzeigen – kein Depot
+        // Depot nicht in der Auswahl anzeigen
         List<String> stationNames = Main.getDatabase().getStations().stream()
                 .filter(s -> !s.isDepot())
                 .map(Station::getName)
@@ -217,18 +189,16 @@ public class EasyRideApp extends Application {
         Passenger passenger = loggedInPassenger;
         Vehicle vehicle = passenger.getAssignedVehicle();
 
-        Label vehicleLabel  = bold("Fahrzeug #" + (vehicle != null ? vehicle.getId() : "—"));
-        Label pickupLabel   = lbl("Abholung: " + (passenger.getPickupStation()  != null ? passenger.getPickupStation().getName()  : "—"));
-        Label dropoffLabel  = lbl("Ziel:     " + (passenger.getDropoffStation() != null ? passenger.getDropoffStation().getName() : "—"));
-
-        Label waitLabel     = new Label("⏳ wird berechnet...");
+        Label vehicleLabel   = bold("Fahrzeug #" + (vehicle != null ? vehicle.getId() : "—"));
+        Label pickupLabel    = lbl("Abholung: " + (passenger.getPickupStation()  != null ? passenger.getPickupStation().getName()  : "—"));
+        Label dropoffLabel   = lbl("Ziel:     " + (passenger.getDropoffStation() != null ? passenger.getDropoffStation().getName() : "—"));
+        Label waitLabel      = new Label("⏳ wird berechnet...");
         Label remainingLabel = new Label("🚗 wird berechnet...");
-        Label stateLabel    = new Label("Status: " + passenger.getState());
+        Label stateLabel     = new Label("Status: " + passenger.getState());
         waitLabel.setStyle(BLUE);
         remainingLabel.setStyle(GREEN);
         stateLabel.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 13px;");
 
-        // Aktualisierungslogik als Runnable – wird beim Laden und per Timer aufgerufen
         Runnable refresh = () -> {
             int waitMinutes      = timeService.getWaitingTime(passenger);
             int remainingMinutes = timeService.getRemainingTime(passenger);
@@ -242,7 +212,6 @@ public class EasyRideApp extends Application {
         };
         refresh.run();
 
-        // Status alle 30 Sekunden automatisch aktualisieren
         liveTimer = new Timeline(new KeyFrame(Duration.seconds(30), e -> refresh.run()));
         liveTimer.setCycleCount(Timeline.INDEFINITE);
         liveTimer.play();
@@ -274,7 +243,6 @@ public class EasyRideApp extends Application {
             return;
         }
 
-        // Fahrzeugauswahl-Dropdown
         ComboBox<String> vehicleBox = new ComboBox<>();
         vehicleBox.setStyle(FIELD);
         vehicleBox.setMaxWidth(Double.MAX_VALUE);
@@ -283,10 +251,10 @@ public class EasyRideApp extends Application {
                     + "  (" + v.getPassengers().size() + "/" + v.getMaxCapacity() + " Sitzpl.)"));
         vehicleBox.getSelectionModel().selectFirst();
 
-        Label nextStopLabel  = bold("—");
-        Label pickupLabel    = new Label("—");
-        Label dropoffLabel   = new Label("—");
-        Label routeMapLabel  = new Label("—");
+        Label nextStopLabel = bold("—");
+        Label pickupLabel   = new Label("—");
+        Label dropoffLabel  = new Label("—");
+        Label routeMapLabel = new Label("—");
         pickupLabel.setWrapText(true);
         dropoffLabel.setWrapText(true);
         routeMapLabel.setWrapText(true);
@@ -303,7 +271,6 @@ public class EasyRideApp extends Application {
 
         Label statusLabel = new Label("");
 
-        // Anzeige für das aktuell gewählte Fahrzeug aktualisieren
         Runnable redraw = () -> {
             int idx = vehicleBox.getSelectionModel().getSelectedIndex();
             if (idx < 0 || idx >= vehicles.size()) return;
@@ -331,10 +298,8 @@ public class EasyRideApp extends Application {
             dropoffLabel.setText(currentStop.getPassengersToDropOff().isEmpty() ? "Keine"
                 : currentStop.getPassengersToDropOff().stream().map(Passenger::getName).collect(Collectors.joining(", ")));
 
-            // Routenübersicht als Text aufbauen
             routeMapLabel.setText(buildRouteDisplay(route));
 
-            // Dropdown-Text mit aktueller Belegung aktualisieren
             vehicleBox.getItems().set(idx, "Fahrzeug #" + vehicle.getId()
                     + "  (" + vehicle.getPassengers().size() + "/" + vehicle.getMaxCapacity() + " Sitzpl.)");
         };
@@ -374,7 +339,6 @@ public class EasyRideApp extends Application {
             back(e -> showRoleSelectionScene())
         );
 
-        // ScrollPane für den Fall dass der Inhalt zu groß wird
         VBox scrollContent = new VBox(card);
         scrollContent.setAlignment(Pos.CENTER);
         scrollContent.setStyle(BG);
@@ -408,7 +372,7 @@ public class EasyRideApp extends Application {
         statusCard.setEffect(createShadow());
         statusCard.getChildren().addAll(bold("Fahrzeug-Status"), routeDisplay);
 
-        // Zustand der Simulation – Array-Trick nötig, da Lambda nur effektiv-finale Variablen liest
+        // Lambdas brauchen effectively-final-Werte – Arrays funktionieren als Wrapper
         Vehicle[] simVehicle = {null};
         boolean[] autoRunning = {false};
 
@@ -436,7 +400,6 @@ public class EasyRideApp extends Application {
         stepBtn.setDisable(true);
         autoBtn.setDisable(true);
 
-        // Schritt 1: Fahrzeug zurücksetzen und Demo-Buchungen anlegen
         setupBtn.setOnAction(e -> {
             stopTimer();
             autoRunning[0] = false;
@@ -445,7 +408,6 @@ public class EasyRideApp extends Application {
             Vehicle vehicle = Main.getDatabase().getVehicles().get(0);
             simVehicle[0] = vehicle;
 
-            // Fahrzeug vollständig zurücksetzen
             new ArrayList<>(vehicle.getPassengers()).forEach(vehicle::removePassenger);
             vehicle.setCurrentRoute(null);
 
@@ -462,7 +424,6 @@ public class EasyRideApp extends Application {
                 return;
             }
 
-            // Zwei Demo-Fahrgäste buchen
             Passenger anna = new Passenger(91, "anna@sim.de");
             Passenger bob  = new Passenger(92, "bob@sim.de");
 
@@ -490,7 +451,6 @@ public class EasyRideApp extends Application {
             autoBtn.setDisable(false);
         });
 
-        // Schritt 2: Einzelnen Halt manuell simulieren
         stepBtn.setOnAction(e -> {
             if (simVehicle[0] == null || simVehicle[0].getCurrentRoute() == null) return;
 
@@ -516,7 +476,6 @@ public class EasyRideApp extends Application {
             fleetService.confirmArrival(simVehicle[0], currentStop);
             drawRoute.run();
 
-            // Prüfen ob die Simulation abgeschlossen ist
             if (simVehicle[0].getCurrentRoute().getCurrentStop() == null) {
                 logArea.appendText("\nFahrzeug zurück in der Zentrale.\n");
                 stepBtn.setDisable(true);
@@ -527,7 +486,6 @@ public class EasyRideApp extends Application {
             }
         });
 
-        // Schritt 3: Auto-Simulation – feuert alle 1,5 Sekunden einen Schritt
         autoBtn.setOnAction(e -> {
             if (autoRunning[0]) {
                 stopTimer();
@@ -559,9 +517,8 @@ public class EasyRideApp extends Application {
         window.setScene(new Scene(scroll, 600, 720));
     }
 
-    // ── Hilfsmethoden (UI-Utilities) ────────────────────────────────────────────
+    // ── Hilfsmethoden ───────────────────────────────────────────────────────────
 
-    /** Erstellt eine zentrierte Wrapper-Box mit dem App-Hintergrund. */
     private VBox centered(VBox card) {
         VBox root = new VBox(card);
         root.setAlignment(Pos.CENTER);
@@ -570,13 +527,11 @@ public class EasyRideApp extends Application {
         return root;
     }
 
-    /** Setzt die Szene auf dem Hauptfenster und macht es sichtbar. */
     private void show(VBox root, double width, double height) {
         window.setScene(new Scene(root, width, height));
         window.show();
     }
 
-    /** Erstellt eine weiße Karten-Box mit Schatten für den Hauptinhalt. */
     private VBox card() {
         VBox card = new VBox(10);
         card.setMaxWidth(400);
@@ -656,7 +611,6 @@ public class EasyRideApp extends Application {
         return button;
     }
 
-    /** Sucht eine Haltestelle im DataStore anhand ihres Namens (Groß-/Kleinschreibung egal). */
     private Station findStation(String name) {
         return Main.getDatabase().getStations().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(name))
@@ -664,7 +618,6 @@ public class EasyRideApp extends Application {
                 .orElse(null);
     }
 
-    /** Stoppt den Live-Timer, falls einer läuft. */
     private void stopTimer() {
         if (liveTimer != null) {
             liveTimer.stop();
@@ -672,7 +625,6 @@ public class EasyRideApp extends Application {
         }
     }
 
-    /** Erstellt den leichten Schatten, der unter den Karten-Boxen erscheint. */
     private DropShadow createShadow() {
         DropShadow shadow = new DropShadow();
         shadow.setColor(Color.rgb(0, 0, 0, 0.08));
@@ -681,10 +633,6 @@ public class EasyRideApp extends Application {
         return shadow;
     }
 
-    /**
-     * Erstellt eine textuelle Übersicht aller Halte einer Route.
-     * Bereits besuchte Halte werden mit ✓, der aktuelle mit ▶ markiert.
-     */
     private String buildRouteDisplay(Route route) {
         StringBuilder sb = new StringBuilder();
         List<RouteStop> stops = route.getStops();

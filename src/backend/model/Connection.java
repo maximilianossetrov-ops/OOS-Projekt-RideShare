@@ -1,9 +1,5 @@
 package model;
 
-/**
- * Repräsentiert eine bidirektionale Verbindung (Kante) zwischen zwei Haltestellen.
- * Die Reisezeit in Minuten bildet das Kantengewicht im Graphen des RoutingService.
- */
 public class Connection {
 
     private final Station station1;
@@ -20,17 +16,11 @@ public class Connection {
     public Station getStation2() { return station2; }
     public int getTravelTimeMinutes() { return travelTimeMinutes; }
 
-    /** Prüft, ob diese Verbindung die angegebene Haltestelle enthält. */
     public boolean connects(Station station) {
         return station1.equals(station) || station2.equals(station);
     }
 
-    /**
-     * Gibt die andere Haltestelle dieser Verbindung zurück.
-     * Wird im Dijkstra-Algorithmus genutzt, um Nachbarn zu ermitteln.
-     *
-     * @return die gegenüberliegende Haltestelle, oder null falls die Station nicht Teil dieser Verbindung ist
-     */
+    // Gibt null zurück, wenn die Station nicht Teil dieser Verbindung ist.
     public Station getDestinationFrom(Station current) {
         if (current.equals(station1)) return station2;
         if (current.equals(station2)) return station1;

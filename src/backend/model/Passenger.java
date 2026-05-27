@@ -1,12 +1,5 @@
 package model;
 
-/**
- * Repräsentiert einen Fahrgast im EasyRide-System.
- * Der Anzeigename wird automatisch aus der E-Mail-Adresse abgeleitet.
- * Nach einer Buchung werden dem Fahrgast sein Fahrzeug sowie die
- * Abhol- und Zielhaltestelle zugewiesen, damit der TimeService die
- * Wartezeit berechnen kann.
- */
 public class Passenger {
 
     private final int id;
@@ -14,15 +7,11 @@ public class Passenger {
     private final String email;
     private PassengerState state;
 
-    // Buchungsdetails – werden vom BookingService nach erfolgreicher Buchung gesetzt
+    // Werden nach erfolgreicher Buchung vom BookingService gesetzt
     private Vehicle assignedVehicle;
     private Station pickupStation;
     private Station dropoffStation;
 
-    /**
-     * Erstellt einen neuen Fahrgast mit der angegebenen ID und E-Mail.
-     * Der Name wird aus dem Teil vor dem "@" abgeleitet (z. B. "anna@test.de" → "anna").
-     */
     public Passenger(int id, String email) {
         this.id = id;
         this.email = email;
