@@ -11,6 +11,7 @@ public class DataSetup {
         erstelleHaltestellen(db);
         erstelleVerbindungen(db);
         erstelleFahrzeuge(db);
+        db.restoreActiveBookings();
         System.out.println("Bereit: " + db.getStations().size() + " Haltestellen, "
                 + db.getVehicles().size() + " Fahrzeuge.");
     }

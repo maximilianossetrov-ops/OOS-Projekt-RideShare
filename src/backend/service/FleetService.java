@@ -33,9 +33,11 @@ public class FleetService implements IFleetService {
         // Kopie nötig – removePassenger() verändert den Zustand während wir iterieren
         for (Passenger passenger : new ArrayList<>(stop.getPassengersToDropOff())) {
             vehicle.removePassenger(passenger);
+            dataStore.setActiveBookingState(passenger.getId(), "ARRIVED");
         }
         for (Passenger passenger : new ArrayList<>(stop.getPassengersToPickUp())) {
             vehicle.addPassenger(passenger);
+            dataStore.setActiveBookingState(passenger.getId(), "IN_TRANSIT");
         }
 
         if (vehicle.getCurrentRoute() != null) {

@@ -18,7 +18,9 @@ import javafx.util.Duration;
 import model.*;
 import service.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,7 +32,7 @@ public class EasyRideApp extends Application {
     private static ITimeService timeService;
     private Passenger loggedInPassenger;
     private Timeline liveTimer;
-    private static final List<Runnable> arrivalListeners = new ArrayList<>();
+    private static RideEventBus eventBus;
 
     // Style-Konstanten
     private static final String BG    = "-fx-background-color: #F8F9FA;";
@@ -54,6 +56,7 @@ public class EasyRideApp extends Application {
             fleetService   = new FleetService(Main.getDatabase(), routeService);
             bookingService = new BookingService(routeService, fleetService);
             timeService    = new TimeService();
+            eventBus       = new RideEventBus();
         }
         window.setTitle("EasyRide – Smart Mobility");
         showRoleSelectionScene();
@@ -167,6 +170,23 @@ public class EasyRideApp extends Application {
         Label welcomeLabel = new Label("Hallo, " + loggedInPassenger.getName() + " 👋");
         welcomeLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #495057;");
 
+        card.getChildren().addAll(title("Wohin geht's?"), welcomeLabel);
+
+        // Banner für aktive Fahrt
+        Booking activeBooking = Main.getDatabase().getActiveBookingForPassenger(loggedInPassenger.getId());
+        if (activeBooking != null) {
+            VBox banner = new VBox(6);
+            banner.setStyle("-fx-background-color: #E8F5E9; -fx-padding: 10px; -fx-background-radius: 8px;");
+            Label bannerLabel = new Label("Aktive Fahrt: "
+                    + activeBooking.getPickupStationName() + " → " + activeBooking.getDropoffStationName());
+            bannerLabel.setStyle("-fx-text-fill: #2E7D32; -fx-font-weight: bold; -fx-font-size: 13px;");
+            bannerLabel.setWrapText(true);
+            Button viewBtn = btn("Fahrt anzeigen", GRN, e -> showRideStatusScene());
+            viewBtn.setPrefHeight(32);
+            banner.getChildren().addAll(bannerLabel, viewBtn);
+            card.getChildren().add(banner);
+        }
+
         // Depot nicht in der Auswahl anzeigen
         List<String> stationNames = Main.getDatabase().getStations().stream()
                 .filter(s -> !s.isDepot())
@@ -178,11 +198,16 @@ public class EasyRideApp extends Application {
         Label errLabel = errLabel();
 
         card.getChildren().addAll(
-            title("Wohin geht's?"), welcomeLabel,
+            new Separator(),
+            lbl("Neue Buchung"),
             lbl("Starthaltepunkt"),  startBox,
             lbl("Zielhaltepunkt"),   targetBox,
             errLabel,
             btn("Jetzt buchen", BLK, e -> {
+                if (Main.getDatabase().getActiveBookingForPassenger(loggedInPassenger.getId()) != null) {
+                    errLabel.setText("Du hast bereits eine aktive Fahrt. Bitte schließe diese zuerst ab.");
+                    return;
+                }
                 String startName  = startBox.getValue();
                 String targetName = targetBox.getValue();
 
@@ -204,14 +229,26 @@ public class EasyRideApp extends Application {
 
                 errLabel.setText("");
                 if (bookingService.bookRide(start, target, loggedInPassenger)) {
+                    int bookingId = Main.getDatabase().nextBookingId();
+                    Main.getDatabase().addBooking(new Booking(
+                            bookingId,
+                            loggedInPassenger.getId(),
+                            loggedInPassenger.getAssignedVehicle().getId(),
+                            start.getName(),
+                            target.getName(),
+                            PassengerState.WAITING.toString(),
+                            LocalDateTime.now().withNano(0).toString()
+                    ));
+                    eventBus.publish(RideEventBus.Event.BOOKING_CHANGED);
                     showRideStatusScene();
                 } else {
                     errLabel.setText("Buchung fehlgeschlagen – kein Fahrzeug verfügbar oder keine Route möglich.");
                 }
             }),
+            btn("Meine Fahrten", GRY, e -> showMyRidesScene()),
             back(e -> showCustomerAuthScene())
         );
-        show(centered(card), 460, 520);
+        show(centered(card), 460, 580);
     }
 
     // ── SZENE 4: Live-Fahrstatus ────────────────────────────────────────────────
@@ -244,7 +281,7 @@ public class EasyRideApp extends Application {
                 : (passenger.getState() == PassengerState.ARRIVED ? "🏁 Angekommen!" : "—"));
         };
         refresh.run();
-        arrivalListeners.add(refresh);
+        eventBus.subscribe(RideEventBus.Event.STOP_CONFIRMED, refresh);
 
         liveTimer = new Timeline(new KeyFrame(Duration.seconds(30), e -> refresh.run()));
         liveTimer.setCycleCount(Timeline.INDEFINITE);
@@ -254,9 +291,78 @@ public class EasyRideApp extends Application {
             title("Meine Fahrt"), vehicleLabel, pickupLabel, dropoffLabel,
             new Separator(), waitLabel, remainingLabel, stateLabel,
             btn("Aktualisieren", GRY, e -> refresh.run()),
-            back(e -> { arrivalListeners.remove(refresh); stopTimer(); showBookingScene(); })
+            back(e -> {
+                eventBus.unsubscribe(RideEventBus.Event.STOP_CONFIRMED, refresh);
+                stopTimer();
+                showBookingScene();
+            })
         );
         show(centered(card), 460, 480);
+    }
+
+    // ── SZENE 4b: Meine Fahrten ─────────────────────────────────────────────────
+
+    private void showMyRidesScene() {
+        stopTimer();
+        VBox card = card();
+        card.setMaxWidth(420);
+        card.getChildren().add(title("Meine Fahrten"));
+
+        List<Booking> myBookings = Main.getDatabase().getBookingsForPassenger(loggedInPassenger.getId());
+
+        if (myBookings.isEmpty()) {
+            card.getChildren().add(lbl("Noch keine Fahrten gebucht."));
+        } else {
+            List<Booking> sorted = new ArrayList<>(myBookings);
+            Collections.reverse(sorted);
+
+            for (Booking booking : sorted) {
+                String stateText = switch (booking.getState()) {
+                    case "WAITING"    -> "Wartend";
+                    case "IN_TRANSIT" -> "Unterwegs";
+                    case "ARRIVED"    -> "Abgeschlossen";
+                    default           -> booking.getState();
+                };
+                boolean active = booking.isActive();
+
+                VBox entry = new VBox(4);
+                entry.setStyle("-fx-background-color: " + (active ? "#E8F5E9" : "#F1F3F5")
+                        + "; -fx-padding: 10px; -fx-background-radius: 8px;");
+
+                Label routeLabel = new Label(booking.getPickupStationName()
+                        + " → " + booking.getDropoffStationName());
+                routeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+                routeLabel.setWrapText(true);
+
+                String dateDisplay = (booking.getBookedAt() != null && booking.getBookedAt().length() >= 16)
+                        ? booking.getBookedAt().substring(0, 16).replace('T', ' ')
+                        : "—";
+                Label infoLabel = new Label("Fahrzeug #" + booking.getVehicleId()
+                        + "  |  " + stateText + "  |  " + dateDisplay);
+                infoLabel.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 12px;");
+                infoLabel.setWrapText(true);
+
+                entry.getChildren().addAll(routeLabel, infoLabel);
+
+                if (active) {
+                    Button viewBtn = btn("Fahrt anzeigen", GRN, e -> showRideStatusScene());
+                    viewBtn.setPrefHeight(30);
+                    entry.getChildren().add(viewBtn);
+                }
+                card.getChildren().add(entry);
+            }
+        }
+
+        card.getChildren().add(back(e -> showBookingScene()));
+
+        VBox scrollContent = new VBox(card);
+        scrollContent.setAlignment(Pos.CENTER);
+        scrollContent.setStyle(BG);
+        scrollContent.setPadding(new Insets(20));
+        ScrollPane scroll = new ScrollPane(scrollContent);
+        scroll.setFitToWidth(true);
+        scroll.setStyle(BG);
+        window.setScene(new Scene(scroll, 460, 620));
     }
 
     // ── SZENE 5: Fahrer-Tablet ──────────────────────────────────────────────────
@@ -341,6 +447,24 @@ public class EasyRideApp extends Application {
         vehicleBox.setOnAction(e -> redraw.run());
         redraw.run();
 
+        // Aktualisiert alle Fahrzeugeinträge in der ComboBox (Fahrgastzahl).
+        Runnable refreshLabels = () -> {
+            for (int i = 0; i < vehicles.size(); i++) {
+                Vehicle v = vehicles.get(i);
+                vehicleBox.getItems().set(i, "Fahrzeug #" + v.getId()
+                        + "  (" + v.getPassengers().size() + "/" + v.getMaxCapacity() + " Sitzpl.)");
+            }
+        };
+
+        // Sofortiges Neuzeichnen bei neuer Buchung (z. B. aus einem anderen Fenster).
+        Runnable onBookingChanged = () -> { refreshLabels.run(); redraw.run(); };
+        eventBus.subscribe(RideEventBus.Event.BOOKING_CHANGED, onBookingChanged);
+
+        // Periodischer Hintergrund-Refresh als Fallback.
+        liveTimer = new Timeline(new KeyFrame(Duration.seconds(10), ev -> redraw.run()));
+        liveTimer.setCycleCount(Timeline.INDEFINITE);
+        liveTimer.play();
+
         Button confirmBtn = btn("✓  Haltepunkt bestätigen", GRN, null);
         confirmBtn.setOnAction(e -> {
             int idx = vehicleBox.getSelectionModel().getSelectedIndex();
@@ -361,7 +485,7 @@ public class EasyRideApp extends Application {
 
             String stationName = currentStop.getStation().getName();
             fleetService.confirmArrival(vehicle, currentStop);
-            arrivalListeners.forEach(Runnable::run);
+            eventBus.publish(RideEventBus.Event.STOP_CONFIRMED);
             statusLabel.setStyle(OKCLR);
             statusLabel.setText("✓  " + stationName + " bestätigt.");
             redraw.run();
@@ -371,7 +495,11 @@ public class EasyRideApp extends Application {
             title("Fahrer-Tablet"),
             lbl("Fahrzeug wählen:"), vehicleBox,
             infoPanel, confirmBtn, statusLabel,
-            back(e -> showRoleSelectionScene())
+            back(e -> {
+                eventBus.unsubscribe(RideEventBus.Event.BOOKING_CHANGED, onBookingChanged);
+                stopTimer();
+                showRoleSelectionScene();
+            })
         );
 
         VBox scrollContent = new VBox(card);
@@ -480,6 +608,7 @@ public class EasyRideApp extends Application {
                 logArea.appendText("\nWartezeit anna: " + timeService.getWaitingTime(anna) + " Min.\n");
                 logArea.appendText("Wartezeit bob:  " + timeService.getWaitingTime(bob)  + " Min.\n");
             }
+            if (ok1 || ok2) eventBus.publish(RideEventBus.Event.BOOKING_CHANGED);
             logArea.appendText("\n");
             drawRoute.run();
             stepBtn.setDisable(false);
@@ -509,6 +638,7 @@ public class EasyRideApp extends Application {
             }
 
             fleetService.confirmArrival(simVehicle[0], currentStop);
+            eventBus.publish(RideEventBus.Event.STOP_CONFIRMED);
             drawRoute.run();
 
             if (simVehicle[0].getCurrentRoute().getCurrentStop() == null) {
