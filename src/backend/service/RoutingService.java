@@ -52,6 +52,11 @@ public class RoutingService implements IRouteService {
     }
 
     @Override
+    public void recalcArrivalTimesFromCurrent(Route route) {
+        recalcArrivalTimes(route.getStops(), route.getCurrentStopIndex(), dataStore.getConnections());
+    }
+
+    @Override
     public Route calcNewRoute(Route currentRoute, Passenger passenger, Station pickupStation, Station dropoffStation) {
         List<Connection> connections = dataStore.getConnections();
 

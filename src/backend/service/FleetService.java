@@ -10,9 +10,11 @@ import java.util.ArrayList;
 public class FleetService implements IFleetService {
 
     private final DataStore dataStore;
+    private final IRouteService routeService;
 
-    public FleetService(DataStore dataStore) {
+    public FleetService(DataStore dataStore, IRouteService routeService) {
         this.dataStore = dataStore;
+        this.routeService = routeService;
     }
 
     // Nimmt einfach das erste Fahrzeug mit freiem Platz – keine Distanzoptimierung.
@@ -37,6 +39,7 @@ public class FleetService implements IFleetService {
         }
 
         if (vehicle.getCurrentRoute() != null) {
+            routeService.recalcArrivalTimesFromCurrent(vehicle.getCurrentRoute());
             int nextIndex = vehicle.getCurrentRoute().getCurrentStopIndex() + 1;
             vehicle.getCurrentRoute().setCurrentStopIndex(nextIndex);
         }
