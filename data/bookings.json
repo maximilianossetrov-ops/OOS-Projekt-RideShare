@@ -1,0 +1,14 @@
+[
+  {"bookingId": 1, "passengerId": 3, "vehicleId": 1, "pickupStation": "Warschauer Straße", "dropoffStation": "Potsdamer Platz", "state": "ARRIVED", "bookedAt": "2026-05-29T17:49:38"},
+  {"bookingId": 2, "passengerId": 4, "vehicleId": 1, "pickupStation": "Warschauer Straße", "dropoffStation": "Potsdamer Platz", "state": "ARRIVED", "bookedAt": "2026-05-29T17:50:24"},
+  {"bookingId": 3, "passengerId": 5, "vehicleId": 1, "pickupStation": "Brandenburger Tor", "dropoffStation": "Rosenthaler Platz", "state": "ARRIVED", "bookedAt": "2026-05-29T17:51:57"},
+  {"bookingId": 4, "passengerId": 3, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Kottbusser Tor", "state": "ARRIVED", "bookedAt": "2026-05-29T18:10:31"},
+  {"bookingId": 5, "passengerId": 4, "vehicleId": 1, "pickupStation": "Rosenthaler Platz", "dropoffStation": "Hermannstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:10:37"},
+  {"bookingId": 6, "passengerId": 5, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-05-29T18:12:06"},
+  {"bookingId": 7, "passengerId": 4, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Kottbusser Tor", "state": "ARRIVED", "bookedAt": "2026-05-29T18:13:09"},
+  {"bookingId": 8, "passengerId": 3, "vehicleId": 1, "pickupStation": "Hermannstraße", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-05-29T18:13:33"},
+  {"bookingId": 9, "passengerId": 3, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Friedrichstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:13:58"},
+  {"bookingId": 10, "passengerId": 3, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Warschauer Straße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:14:38"},
+  {"bookingId": 11, "passengerId": 4, "vehicleId": 1, "pickupStation": "Warschauer Straße", "dropoffStation": "Friedrichstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:15:57"},
+  {"bookingId": 12, "passengerId": 5, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Hermannstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:16:15"}
+]
