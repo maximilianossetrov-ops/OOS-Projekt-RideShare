@@ -25,11 +25,12 @@ import java.util.stream.Collectors;
 public class EasyRideApp extends Application {
 
     private Stage window;
-    private IBookingService bookingService;
-    private IFleetService fleetService;
-    private ITimeService timeService;
+    private static IBookingService bookingService;
+    private static IFleetService fleetService;
+    private static ITimeService timeService;
     private Passenger loggedInPassenger;
     private Timeline liveTimer;
+    private static final List<Runnable> arrivalListeners = new ArrayList<>();
 
     // Style-Konstanten
     private static final String BG    = "-fx-background-color: #F8F9FA;";
@@ -48,12 +49,22 @@ public class EasyRideApp extends Application {
     @Override
     public void start(Stage stage) {
         window = stage;
-        fleetService   = new FleetService(Main.getDatabase());
-        IRouteService routeService = new RoutingService(Main.getDatabase());
-        bookingService = new BookingService(routeService, fleetService);
-        timeService    = new TimeService();
+        if (bookingService == null) {
+            IRouteService routeService = new RoutingService(Main.getDatabase());
+            fleetService   = new FleetService(Main.getDatabase(), routeService);
+            bookingService = new BookingService(routeService, fleetService);
+            timeService    = new TimeService();
+        }
         window.setTitle("EasyRide – Smart Mobility");
         showRoleSelectionScene();
+    }
+
+    static void openNewWindow() {
+        EasyRideApp app = new EasyRideApp();
+        Stage stage = new Stage();
+        try {
+            app.start(stage);
+        } catch (Exception ignored) {}
     }
 
     // ── SZENE 1: Rollenauswahl ──────────────────────────────────────────────────
@@ -66,9 +77,11 @@ public class EasyRideApp extends Application {
             title("EasyRide"), sub("Smart Mobility Platform"), spacer(),
             btn("Ich bin Kunde",      BLK, e -> showCustomerAuthScene()),
             btn("Fahrer-Tablet",      GRY, e -> showDriverScene()),
-            btn("Simulation starten", GRN, e -> showSimulationScene())
+            btn("Simulation starten", GRN, e -> showSimulationScene()),
+            new Separator(),
+            btn("Neues Fenster öffnen", GRY, e -> openNewWindow())
         );
-        show(centered(card), 460, 440);
+        show(centered(card), 460, 500);
     }
 
     // ── SZENE 2: Kunden-Anmeldung ───────────────────────────────────────────────
@@ -231,6 +244,7 @@ public class EasyRideApp extends Application {
                 : (passenger.getState() == PassengerState.ARRIVED ? "🏁 Angekommen!" : "—"));
         };
         refresh.run();
+        arrivalListeners.add(refresh);
 
         liveTimer = new Timeline(new KeyFrame(Duration.seconds(30), e -> refresh.run()));
         liveTimer.setCycleCount(Timeline.INDEFINITE);
@@ -240,7 +254,7 @@ public class EasyRideApp extends Application {
             title("Meine Fahrt"), vehicleLabel, pickupLabel, dropoffLabel,
             new Separator(), waitLabel, remainingLabel, stateLabel,
             btn("Aktualisieren", GRY, e -> refresh.run()),
-            back(e -> { stopTimer(); showBookingScene(); })
+            back(e -> { arrivalListeners.remove(refresh); stopTimer(); showBookingScene(); })
         );
         show(centered(card), 460, 480);
     }
@@ -347,6 +361,7 @@ public class EasyRideApp extends Application {
 
             String stationName = currentStop.getStation().getName();
             fleetService.confirmArrival(vehicle, currentStop);
+            arrivalListeners.forEach(Runnable::run);
             statusLabel.setStyle(OKCLR);
             statusLabel.setText("✓  " + stationName + " bestätigt.");
             redraw.run();
