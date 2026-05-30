@@ -1,7 +1,10 @@
 [
-  {"id": 1, "email": "jason180105@icloud.com"},
-  {"id": 2, "email": "test@email"},
-  {"id": 3, "email": "a"},
-  {"id": 4, "email": "b"},
-  {"id": 5, "email": "c"}
+  {"id": 1, "name": "Jason", "email": "jason@test", "password": "532eaabd9574880dbf76b9b8cc00832c20a6ec113d682299550d7a6e0f345e25"},
+  {"id": 2, "name": "test", "email": "test@test", "password": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"},
+  {"id": 3, "name": "test2", "email": "test2@email.com", "password": "32e6e1e134f9cc8f14b05925667c118d19244aebce442d6fecd2ac38cdc97649"},
+  {"id": 4, "name": "test3", "email": "test3@email.com", "password": "fd61a03af4f77d870fc21e05e7e80678095c92d808cfb3b5c279ee04c74aca13"},
+  {"id": 5, "name": "Jason", "email": "jason@email.com", "password": "Test"},
+  {"id": 6, "name": "Max", "email": "max@email.com", "password": "74ba7e49e963635164033eb502fb4d47ad7b0ee662a7e0370a0ea0c66659ef88"},
+  {"id": 7, "name": "balshed", "email": "balshed@email.com", "password": "994a98c74e71c14eceb198d7d2caf2cd392cdb01a8f5ceecc1b8042ef0d151bc"},
+  {"id": 8, "name": "erkan", "email": "erkan@email.com", "password": "eee896d514cbd6b6a03ec848e0bf2ad931c963c92a4dff6d20085b7f8154afae"}
 ]

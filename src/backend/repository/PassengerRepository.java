@@ -10,16 +10,13 @@ import java.util.List;
 
 // Liest und schreibt registrierte Nutzer in data/users.json.
 
-
 public class PassengerRepository {
 
     private static final Path FILE = Path.of("data/users.json");
 
-    /** Lädt alle gespeicherten Nutzer aus der JSON-Datei. */
     public static List<Passenger> load() {
         List<Passenger> passengers = new ArrayList<>();
         if (!Files.exists(FILE)) return passengers;
-
         try {
             String content = Files.readString(FILE);
             int pos = 0;
@@ -28,9 +25,13 @@ public class PassengerRepository {
                 if (end == -1) break;
                 String entry = content.substring(pos + 1, end);
                 int id = parseIntField(entry, "id");
+                String name = parseStringField(entry, "name");
                 String email = parseStringField(entry, "email");
+                String password = parseStringField(entry, "password");
                 if (id > 0 && email != null) {
-                    passengers.add(new Passenger(id, email));
+                    if (name == null)
+                        name = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+                    passengers.add(new Passenger(id, name, email, password != null ? password : ""));
                 }
                 pos = end + 1;
             }
@@ -40,7 +41,6 @@ public class PassengerRepository {
         return passengers;
     }
 
-    /** Speichert die komplette Nutzerliste in die JSON-Datei. */
     public static void save(List<Passenger> passengers) {
         try {
             Files.createDirectories(FILE.getParent());
@@ -48,7 +48,9 @@ public class PassengerRepository {
             for (int i = 0; i < passengers.size(); i++) {
                 Passenger p = passengers.get(i);
                 sb.append("  {\"id\": ").append(p.getId())
-                  .append(", \"email\": \"").append(p.getEmail()).append("\"}");
+                  .append(", \"name\": \"").append(p.getName()).append("\"")
+                  .append(", \"email\": \"").append(p.getEmail()).append("\"")
+                  .append(", \"password\": \"").append(p.getPassword()).append("\"}");
                 if (i < passengers.size() - 1) sb.append(",");
                 sb.append("\n");
             }

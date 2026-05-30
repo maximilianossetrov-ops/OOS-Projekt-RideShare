@@ -2,6 +2,7 @@ package repository;
 
 import model.Booking;
 import model.Connection;
+import model.Driver;
 import model.Passenger;
 import model.PassengerState;
 import model.Station;
@@ -9,25 +10,30 @@ import model.Vehicle;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DataStore {
 
-    private final List<Passenger> registeredPassengers;
-    private final List<Vehicle>   vehicles;
-    private final List<Station>   stations;
+    private final List<Passenger>  registeredPassengers;
+    private final List<Driver>     registeredDrivers;
+    private final List<Vehicle>    vehicles;
+    private final List<Station>    stations;
     private final List<Connection> connections;
-    private final List<Booking>   bookings;
+    private final List<Booking>    bookings;
+
+    // Fahrzeuge, die gerade von einem eingeloggten Fahrer belegt sind (nur im RAM).
+    private final Set<Integer> claimedVehicleIds = new HashSet<>();
 
     public DataStore() {
-        this.registeredPassengers = new ArrayList<>();
-        this.vehicles   = new ArrayList<>();
-        this.stations   = new ArrayList<>();
+        this.registeredPassengers = new ArrayList<>(PassengerRepository.load());
+        this.registeredDrivers    = new ArrayList<>(DriverRepository.load());
+        this.vehicles    = new ArrayList<>();
+        this.stations    = new ArrayList<>();
         this.connections = new ArrayList<>();
-        this.bookings   = new ArrayList<>();
-        this.registeredPassengers.addAll(PassengerRepository.load());
-        this.bookings.addAll(BookingRepository.load());
+        this.bookings    = new ArrayList<>(BookingRepository.load());
     }
 
     // ── Passengers ──────────────────────────────────────────────────────────────
@@ -39,6 +45,37 @@ public class DataStore {
     public void addPassenger(Passenger passenger) {
         registeredPassengers.add(passenger);
         PassengerRepository.save(registeredPassengers);
+    }
+
+    // ── Drivers ─────────────────────────────────────────────────────────────────
+
+    public List<Driver> getRegisteredDrivers() {
+        return Collections.unmodifiableList(registeredDrivers);
+    }
+
+    public void addDriver(Driver driver) {
+        registeredDrivers.add(driver);
+        DriverRepository.save(registeredDrivers);
+    }
+
+    // ── Vehicle claiming (session-only, nicht persistiert) ──────────────────────
+
+    /**
+     * Reserviert ein Fahrzeug für die aktuelle Fahrer-Session.
+     * Gibt true zurück, wenn die Reservierung erfolgreich war,
+     * false wenn das Fahrzeug bereits belegt ist.
+     */
+    public boolean claimVehicle(int vehicleId) {
+        return claimedVehicleIds.add(vehicleId);
+    }
+
+    /** Gibt ein Fahrzeug nach Ende der Schicht wieder frei. */
+    public void releaseVehicle(int vehicleId) {
+        claimedVehicleIds.remove(vehicleId);
+    }
+
+    public boolean isVehicleClaimed(int vehicleId) {
+        return claimedVehicleIds.contains(vehicleId);
     }
 
     // ── Vehicles / Stations / Connections ────────────────────────────────────────
@@ -89,7 +126,6 @@ public class DataStore {
         }
     }
 
-    /** Setzt den Status der aktiven Buchung eines Fahrgastes. */
     public void setActiveBookingState(int passengerId, String newState) {
         Booking active = getActiveBookingForPassenger(passengerId);
         if (active != null) {
@@ -97,11 +133,6 @@ public class DataStore {
         }
     }
 
-    /**
-     * Stellt nach dem Laden von Stationen und Fahrzeugen den Passagier-Zustand
-     * aus gespeicherten aktiven Buchungen wieder her.
-     * Muss nach DataSetup.fillDatabase() aufgerufen werden.
-     */
     public void restoreActiveBookings() {
         for (Booking booking : bookings) {
             if (!booking.isActive()) continue;
