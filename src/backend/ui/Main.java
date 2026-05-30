@@ -14,6 +14,7 @@ public class Main {
     public static void main(String[] args) {
         database = new DataStore();
         DataSetup.fillDatabase(database);
+        database.restoreActiveBookings();
         EasyRideApp.main(args);
     }
 }

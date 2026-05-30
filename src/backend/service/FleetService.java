@@ -1,6 +1,7 @@
 package service;
 
 import model.Passenger;
+import model.PassengerState;
 import model.RouteStop;
 import model.Vehicle;
 import repository.DataStore;
@@ -35,8 +36,10 @@ public class FleetService implements IFleetService {
             vehicle.removePassenger(passenger);
             dataStore.setActiveBookingState(passenger.getId(), "ARRIVED");
         }
+        // Passagier ist bereits beim Buchen im Fahrzeug reserviert (WAITING);
+        // bei Abholung nur noch Status auf IN_TRANSIT setzen.
         for (Passenger passenger : new ArrayList<>(stop.getPassengersToPickUp())) {
-            vehicle.addPassenger(passenger);
+            passenger.setState(PassengerState.IN_TRANSIT);
             dataStore.setActiveBookingState(passenger.getId(), "IN_TRANSIT");
         }
 
@@ -44,6 +47,11 @@ public class FleetService implements IFleetService {
             routeService.recalcArrivalTimesFromCurrent(vehicle.getCurrentRoute());
             int nextIndex = vehicle.getCurrentRoute().getCurrentStopIndex() + 1;
             vehicle.getCurrentRoute().setCurrentStopIndex(nextIndex);
+            // Route freigeben, damit neue Buchungen calcInitialRoute statt
+            // calcNewRoute auf der abgeschlossenen Route aufrufen.
+            if (vehicle.getCurrentRoute().getCurrentStop() == null) {
+                vehicle.setCurrentRoute(null);
+            }
         }
     }
 }

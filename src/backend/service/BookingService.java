@@ -1,6 +1,7 @@
 package service;
 
 import model.Passenger;
+import model.PassengerState;
 import model.Route;
 import model.Station;
 import model.Vehicle;
@@ -37,6 +38,8 @@ public class BookingService implements IBookingService {
 
         vehicle.setCurrentRoute(route);
         vehicle.addPassenger(passenger);
+        // Passagier ist noch nicht eingestiegen – Zustand auf WAITING zurücksetzen.
+        passenger.setState(PassengerState.WAITING);
         passenger.setAssignedVehicle(vehicle);
         passenger.setPickupStation(start);
         passenger.setDropoffStation(target);

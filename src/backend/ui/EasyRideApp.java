@@ -21,6 +21,7 @@ import service.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -57,6 +58,7 @@ public class EasyRideApp extends Application {
             bookingService = new BookingService(routeService, fleetService);
             timeService    = new TimeService();
             eventBus       = new RideEventBus();
+            restoreRoutesFromActiveBookings(routeService);
         }
         window.setTitle("EasyRide – Smart Mobility");
         showRoleSelectionScene();
@@ -270,15 +272,20 @@ public class EasyRideApp extends Application {
         stateLabel.setStyle("-fx-text-fill: #6C757D; -fx-font-size: 13px;");
 
         Runnable refresh = () -> {
+            stateLabel.setText("Status: " + passenger.getState());
+            if (passenger.getState() == PassengerState.ARRIVED) {
+                waitLabel.setText("✅ Angekommen!");
+                remainingLabel.setText("🏁 Fahrt abgeschlossen.");
+                return;
+            }
             int waitMinutes      = timeService.getWaitingTime(passenger);
             int remainingMinutes = timeService.getRemainingTime(passenger);
-            stateLabel.setText("Status: " + passenger.getState());
             waitLabel.setText(waitMinutes >= 0
                 ? "⏳ Wartezeit bis Abholung: " + waitMinutes + " Min."
                 : "✅ Fahrzeug bereits am Startpunkt");
             remainingLabel.setText(remainingMinutes >= 0
                 ? "🚗 Restfahrzeit bis Ziel: " + remainingMinutes + " Min."
-                : (passenger.getState() == PassengerState.ARRIVED ? "🏁 Angekommen!" : "—"));
+                : "—");
         };
         refresh.run();
         eventBus.subscribe(RideEventBus.Event.STOP_CONFIRMED, refresh);
@@ -290,7 +297,6 @@ public class EasyRideApp extends Application {
         card.getChildren().addAll(
             title("Meine Fahrt"), vehicleLabel, pickupLabel, dropoffLabel,
             new Separator(), waitLabel, remainingLabel, stateLabel,
-            btn("Aktualisieren", GRY, e -> refresh.run()),
             back(e -> {
                 eventBus.unsubscribe(RideEventBus.Event.STOP_CONFIRMED, refresh);
                 stopTimer();
@@ -362,7 +368,7 @@ public class EasyRideApp extends Application {
         ScrollPane scroll = new ScrollPane(scrollContent);
         scroll.setFitToWidth(true);
         scroll.setStyle(BG);
-        window.setScene(new Scene(scroll, 460, 620));
+        show(scroll, 460, 620);
     }
 
     // ── SZENE 5: Fahrer-Tablet ──────────────────────────────────────────────────
@@ -419,7 +425,7 @@ public class EasyRideApp extends Application {
             Route route = vehicle.getCurrentRoute();
 
             if (route == null || route.getStops().isEmpty()) {
-                nextStopLabel.setText("Keine aktive Route");
+                nextStopLabel.setText("Kein aktiver Auftrag");
                 pickupLabel.setText("—");
                 dropoffLabel.setText("—");
                 routeMapLabel.setText("—");
@@ -429,6 +435,8 @@ public class EasyRideApp extends Application {
             RouteStop currentStop = route.getCurrentStop();
             if (currentStop == null) {
                 nextStopLabel.setText("Route abgeschlossen.");
+                pickupLabel.setText("—");
+                dropoffLabel.setText("—");
                 return;
             }
 
@@ -472,13 +480,13 @@ public class EasyRideApp extends Application {
             Vehicle vehicle = vehicles.get(idx);
 
             if (vehicle.getCurrentRoute() == null) {
-                statusLabel.setStyle(ERR);
-                statusLabel.setText("Keine aktive Route.");
+                statusLabel.setStyle(OKCLR);
+                statusLabel.setText("Kein aktiver Auftrag – Route abgeschlossen.");
                 return;
             }
             RouteStop currentStop = vehicle.getCurrentRoute().getCurrentStop();
             if (currentStop == null) {
-                statusLabel.setStyle(ERR);
+                statusLabel.setStyle(OKCLR);
                 statusLabel.setText("Alle Halte bereits bestätigt.");
                 return;
             }
@@ -509,7 +517,7 @@ public class EasyRideApp extends Application {
         ScrollPane scroll = new ScrollPane(scrollContent);
         scroll.setFitToWidth(true);
         scroll.setStyle(BG);
-        window.setScene(new Scene(scroll, 520, 700));
+        show(scroll, 520, 700);
     }
 
     // ── SZENE 6: Simulation ─────────────────────────────────────────────────────
@@ -679,7 +687,56 @@ public class EasyRideApp extends Application {
         ScrollPane scroll = new ScrollPane(root);
         scroll.setFitToWidth(true);
         scroll.setStyle(BG);
-        window.setScene(new Scene(scroll, 600, 720));
+        show(scroll, 600, 720);
+    }
+
+    // ── Routen aus gespeicherten Buchungen wiederherstellen ─────────────────────
+
+    /**
+     * Rekonstruiert Fahrzeugrouten und Passagierlisten aus den beim Start geladenen
+     * aktiven Buchungen. Wird einmalig nach dem Erzeugen der Services aufgerufen,
+     * damit der Fahrer-Tablet auch nach einem Neustart die korrekte Route sieht.
+     */
+    private static void restoreRoutesFromActiveBookings(IRouteService routeService) {
+        List<Booking> active = Main.getDatabase().getBookings().stream()
+                .filter(Booking::isActive)
+                .sorted(Comparator.comparingInt(Booking::getBookingId))
+                .toList();
+
+        for (Booking booking : active) {
+            Passenger passenger = Main.getDatabase().getRegisteredPassengers().stream()
+                    .filter(p -> p.getId() == booking.getPassengerId())
+                    .findFirst().orElse(null);
+            Vehicle vehicle = Main.getDatabase().getVehicles().stream()
+                    .filter(v -> v.getId() == booking.getVehicleId())
+                    .findFirst().orElse(null);
+            Station pickup = Main.getDatabase().getStations().stream()
+                    .filter(s -> s.getName().equals(booking.getPickupStationName()))
+                    .findFirst().orElse(null);
+            Station dropoff = Main.getDatabase().getStations().stream()
+                    .filter(s -> s.getName().equals(booking.getDropoffStationName()))
+                    .findFirst().orElse(null);
+
+            if (passenger == null || vehicle == null || pickup == null || dropoff == null) continue;
+
+            // Route neu berechnen – erste Buchung calcInitialRoute, weitere calcNewRoute
+            Route route = vehicle.getCurrentRoute() == null
+                    ? routeService.calcInitialRoute(vehicle, pickup, dropoff, passenger)
+                    : routeService.calcNewRoute(vehicle.getCurrentRoute(), passenger, pickup, dropoff);
+
+            if (route != null) {
+                vehicle.setCurrentRoute(route);
+            }
+
+            // Passagier ins Fahrzeug eintragen (falls noch nicht vorhanden)
+            if (!vehicle.getPassengers().contains(passenger)) {
+                vehicle.addPassenger(passenger);       // setzt intern IN_TRANSIT
+                try {
+                    // Gespeicherten Zustand (WAITING / IN_TRANSIT) wiederherstellen
+                    passenger.setState(PassengerState.valueOf(booking.getState()));
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
     }
 
     // ── Hilfsmethoden ───────────────────────────────────────────────────────────
@@ -692,8 +749,13 @@ public class EasyRideApp extends Application {
         return root;
     }
 
-    private void show(VBox root, double width, double height) {
-        window.setScene(new Scene(root, width, height));
+    private void show(javafx.scene.Parent root, double defaultWidth, double defaultHeight) {
+        boolean wasMaximized = window.isMaximized();
+        Scene current = window.getScene();
+        double w = (current != null) ? current.getWidth()  : defaultWidth;
+        double h = (current != null) ? current.getHeight() : defaultHeight;
+        window.setScene(new Scene(root, w, h));
+        if (wasMaximized) window.setMaximized(true);
         window.show();
     }
 
