@@ -10,5 +10,6 @@
   {"bookingId": 9, "passengerId": 3, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Friedrichstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:13:58"},
   {"bookingId": 10, "passengerId": 3, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Warschauer Straße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:14:38"},
   {"bookingId": 11, "passengerId": 4, "vehicleId": 1, "pickupStation": "Warschauer Straße", "dropoffStation": "Friedrichstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:15:57"},
-  {"bookingId": 12, "passengerId": 5, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Hermannstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:16:15"}
+  {"bookingId": 12, "passengerId": 5, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Hermannstraße", "state": "ARRIVED", "bookedAt": "2026-05-29T18:16:15"},
+  {"bookingId": 13, "passengerId": 1, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Rosenthaler Platz", "state": "WAITING", "bookedAt": "2026-05-29T19:37:44"}
 ]
