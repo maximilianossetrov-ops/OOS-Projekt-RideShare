@@ -1,0 +1,289 @@
+@startuml EasyRide_Klassendiagramm
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor #EEF2FF
+    BorderColor     #4F46E5
+    FontSize        11
+    FontName        "Segoe UI"
+    HeaderBackgroundColor #4F46E5
+    FontColor       #1E1B4B
+    HeaderFontColor white
+}
+skinparam interface {
+    BackgroundColor #D1FAE5
+    BorderColor     #059669
+    HeaderBackgroundColor #059669
+    HeaderFontColor white
+}
+skinparam enum {
+    BackgroundColor #FEF3C7
+    BorderColor     #B45309
+    HeaderBackgroundColor #B45309
+    HeaderFontColor white
+}
+skinparam package {
+    BackgroundColor #FFFFFF
+    BorderColor     #9CA3AF
+    FontColor       #374151
+    FontStyle       bold
+}
+skinparam arrow {
+    Color #4F46E5
+    FontSize 10
+}
+
+' ╔══════════════════════════════════════════════════╗
+' ║  PAKET: model                                     ║
+' ╚══════════════════════════════════════════════════╝
+package "model" {
+
+    enum PassengerState {
+        WAITING
+        IN_TRANSIT
+        ARRIVED
+    }
+
+    class Passenger {
+        - id : int
+        - name : String
+        - email : String
+        - password : String
+        - state : PassengerState
+        - assignedVehicle : Vehicle
+        - pickupStation : Station
+        - dropoffStation : Station
+        ..
+        + getState() : PassengerState
+        + setState(s : PassengerState)
+    }
+
+    class Driver {
+        - id : int
+        - name : String
+        - email : String
+        - password : String
+    }
+
+    class Vehicle {
+        - id : int
+        - maxCapacity : int
+        - passengers : List<Passenger>
+        - currentRoute : Route
+        ..
+        + hasCapacity() : boolean
+        + addPassenger(p : Passenger) : boolean
+        + removePassenger(p : Passenger) : boolean
+    }
+
+    class Station {
+        - name : String
+        - isDepot : boolean
+    }
+
+    class Connection {
+        - start : Station
+        - end : Station
+        - travelTimeMinutes : int
+    }
+
+    class Route {
+        - routeId : int
+        - vehicle : Vehicle
+        - stops : List<RouteStop>
+        - currentStopIndex : int
+        ..
+        + getCurrentStop() : RouteStop
+        + getNextStop() : RouteStop
+        + setStops(stops : List<RouteStop>)
+    }
+
+    class RouteStop {
+        - station : Station
+        - plannedArrivalTime : LocalDateTime
+        - reached : boolean
+        - passengersToPickUp : List<Passenger>
+        - passengersToDropOff : List<Passenger>
+        ..
+        + addPassengerToPickUp(p : Passenger)
+        + addPassengerToDropOff(p : Passenger)
+        + setReached(b : boolean)
+    }
+
+    class Booking {
+        - bookingId : int
+        - passengerId : int
+        - vehicleId : int
+        - pickupStationName : String
+        - dropoffStationName : String
+        - state : String
+        - bookedAt : String
+        ..
+        + isActive() : boolean
+        + setState(s : String)
+    }
+}
+
+' ╔══════════════════════════════════════════════════╗
+' ║  PAKET: service                                   ║
+' ╚══════════════════════════════════════════════════╝
+package "service" {
+
+    interface IBookingService {
+        + bookRide(start : Station,\n  target : Station,\n  passenger : Passenger) : boolean
+    }
+
+    interface IFleetService {
+        + getVehicleForPassenger(p : Passenger) : Vehicle
+        + confirmArrival(v : Vehicle, stop : RouteStop) : void
+    }
+
+    interface IRouteService {
+        + calcInitialRoute(v : Vehicle, start : Station,\n  target : Station, p : Passenger) : Route
+        + calcNewRoute(route : Route, p : Passenger,\n  pickup : Station, dropoff : Station) : Route
+        + recalcArrivalTimesFromCurrent(route : Route) : void
+    }
+
+    interface ITimeService {
+        + getWaitingTime(p : Passenger) : int
+        + getRemainingTime(p : Passenger) : int
+    }
+
+    class BookingService {
+        - routeService : IRouteService
+        - fleetService : IFleetService
+        ..
+        + bookRide(...) : boolean
+    }
+
+    class FleetService {
+        - dataStore : DataStore
+        - routeService : IRouteService
+        ..
+        + getVehicleForPassenger(p : Passenger) : Vehicle
+        + confirmArrival(v : Vehicle, stop : RouteStop) : void
+    }
+
+    class RoutingService {
+        - dataStore : DataStore
+        ..
+        + calcInitialRoute(...) : Route
+        + calcNewRoute(...) : Route
+        + recalcArrivalTimesFromCurrent(route : Route) : void
+    }
+
+    class TimeService {
+        + getWaitingTime(p : Passenger) : int
+        + getRemainingTime(p : Passenger) : int
+    }
+
+    class RideEventBus {
+        - listeners : Map<Event, List<Runnable>>
+        ..
+        + subscribe(event : Event, handler : Runnable)
+        + unsubscribe(event : Event, handler : Runnable)
+        + publish(event : Event)
+    }
+
+    enum "RideEventBus::Event" as RideEvent {
+        BOOKING_CHANGED
+        STOP_CONFIRMED
+    }
+}
+
+' ╔══════════════════════════════════════════════════╗
+' ║  PAKET: repository                                ║
+' ╚══════════════════════════════════════════════════╝
+package "repository" {
+
+    class DataStore {
+        - registeredPassengers : List<Passenger>
+        - registeredDrivers    : List<Driver>
+        - vehicles             : List<Vehicle>
+        - stations             : List<Station>
+        - connections          : List<Connection>
+        - bookings             : List<Booking>
+        - claimedVehicleIds    : Set<Integer>
+        ..
+        + addPassenger(p : Passenger)
+        + addDriver(d : Driver)
+        + addBooking(b : Booking)
+        + claimVehicle(id : int) : boolean
+        + releaseVehicle(id : int) : void
+        + isVehicleClaimed(id : int) : boolean
+        + getActiveBookingForPassenger(id : int) : Booking
+        + setActiveBookingState(id : int, state : String)
+        + restoreActiveBookings()
+    }
+}
+
+' ╔══════════════════════════════════════════════════╗
+' ║  BEZIEHUNGEN — Model-intern                       ║
+' ╚══════════════════════════════════════════════════╝
+
+' Passenger ↔ PassengerState
+Passenger "1" -right-> "1" PassengerState : state
+
+' Passenger → Station (Abholung / Ziel)
+Passenger -down-> Station : pickup/dropoff
+
+' Passenger → Vehicle (zugewiesen nach Buchung)
+Passenger -left-> Vehicle : assignedVehicle
+
+' Vehicle ↔ Passenger (bidirektional: fährt / ist an Bord)
+Vehicle "1" *-down- "0..4" Passenger : carries
+
+' Vehicle ↔ Route
+Vehicle "1" *-right- "0..1" Route : currentRoute
+
+' Route → Vehicle (Rückreferenz)
+Route -left-> Vehicle : vehicle
+
+' Route ↔ RouteStop
+Route "1" *-down- "1..*" RouteStop : stops
+
+' RouteStop → Station
+RouteStop -right-> Station : station
+
+' RouteStop → Passenger (Wartende / Fahrende)
+RouteStop "1" o-down- "0..*" Passenger : toPickUp
+RouteStop "1" o-down- "0..*" Passenger : toDropOff
+
+' Connection → Station (Start & Ende)
+Connection -up-> Station : start / end
+
+' ╔══════════════════════════════════════════════════╗
+' ║  BEZIEHUNGEN — Service-Implementierungen          ║
+' ╚══════════════════════════════════════════════════╝
+
+BookingService .up.|> IBookingService
+FleetService   .up.|> IFleetService
+RoutingService .up.|> IRouteService
+TimeService    .up.|> ITimeService
+
+' Abhängigkeiten zwischen Services
+BookingService -right-> IRouteService : uses
+BookingService -down->  IFleetService : uses
+
+FleetService   -right-> IRouteService : uses
+FleetService   -down->  DataStore     : uses
+
+RoutingService -down->  DataStore     : uses
+
+' RideEventBus-Event
+RideEventBus "1" *-down- "1" RideEvent
+
+' ╔══════════════════════════════════════════════════╗
+' ║  BEZIEHUNGEN — Repository                         ║
+' ╚══════════════════════════════════════════════════╝
+
+DataStore o-- Passenger  : registeredPassengers
+DataStore o-- Driver     : registeredDrivers
+DataStore o-- Vehicle    : vehicles
+DataStore o-- Station    : stations
+DataStore o-- Connection : connections
+DataStore o-- Booking    : bookings
+
+@enduml
