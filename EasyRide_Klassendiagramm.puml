@@ -194,9 +194,30 @@ package "service" {
 }
 
 ' ╔══════════════════════════════════════════════════╗
+' ║  PAKET: ui                                        ║
+' ╚══════════════════════════════════════════════════╝
+package "ui" {
+
+    class EasyRideApp {
+        - loggedInPassenger : Passenger
+        - loggedInDriver    : Driver
+        - loggedInDriverVehicleId : int
+        ..
+        ' Kunde: Fahrt buchen, Status einsehen
+        ' Fahrer: Schicht starten, Haltepunkte bestätigen
+        ' Simulation: manuelles Testen der Route
+    }
+}
+
+' ╔══════════════════════════════════════════════════╗
 ' ║  PAKET: repository                                ║
 ' ╚══════════════════════════════════════════════════╝
 package "repository" {
+
+    class PasswordUtils {
+        + {static} hash(plain : String) : String
+        + {static} verify(plain : String, hash : String) : boolean
+    }
 
     class DataStore {
         - registeredPassengers : List<Passenger>
@@ -285,5 +306,23 @@ DataStore o-- Vehicle    : vehicles
 DataStore o-- Station    : stations
 DataStore o-- Connection : connections
 DataStore o-- Booking    : bookings
+
+' ╔══════════════════════════════════════════════════╗
+' ║  BEZIEHUNGEN — UI → Backend                       ║
+' ╚══════════════════════════════════════════════════╝
+
+' UI nutzt Service-Interfaces (über Instanzfelder)
+EasyRideApp --> IBookingService : bookRide()
+EasyRideApp --> IFleetService   : confirmArrival()
+EasyRideApp --> ITimeService    : getWaitingTime()\ngetRemainingTime()
+
+' UI liest/schreibt DataStore direkt (via Main.getDatabase())
+EasyRideApp ..> DataStore : getRegisteredPassengers()\ngetRegisteredDrivers()\ngetVehicles() / getStations()\ngetActiveBookingForPassenger()\naddPassenger() / addDriver()\naddBooking() / claimVehicle()
+
+' UI reagiert auf Events und löst sie aus
+EasyRideApp --> RideEventBus : subscribe()\npublish()
+
+' UI nutzt PasswordUtils für Login & Registrierung
+EasyRideApp ..> PasswordUtils : hash() / verify()
 
 @enduml
