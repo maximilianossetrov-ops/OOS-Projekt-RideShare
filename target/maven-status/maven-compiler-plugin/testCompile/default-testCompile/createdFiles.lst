@@ -1,7 +1,1 @@
-repository\PasswordUtilsTest.class
 model\BookingTest.class
-model\ConnectionTest.class
-model\PassengerTest.class
-service\RoutingServiceTest.class
-model\VehicleTest.class
-model\StationTest.class

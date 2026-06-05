@@ -1,7 +1,3 @@
 C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\model\BookingTest.java
-C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\model\ConnectionTest.java
-C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\model\PassengerTest.java
-C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\model\StationTest.java
-C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\model\VehicleTest.java
-C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\repository\PasswordUtilsTest.java
-C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\service\RoutingServiceTest.java
+C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\service\TimeServiceTestGetRemainingTime.java
+C:\Users\admin\IdeaProjects\OOS-Projekt-RideShare\src\test\java\service\TimeServiceTestGetWaitingTime.java

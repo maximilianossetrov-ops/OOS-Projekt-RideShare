@@ -16,5 +16,15 @@
   {"bookingId": 15, "passengerId": 10, "vehicleId": 1, "pickupStation": "Warschauer Straße", "dropoffStation": "Rosenthaler Platz", "state": "ARRIVED", "bookedAt": "2026-06-05T12:54:46"},
   {"bookingId": 16, "passengerId": 14, "vehicleId": 2, "pickupStation": "Zoologischer Garten", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T12:56:59"},
   {"bookingId": 17, "passengerId": 11, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Kottbusser Tor", "state": "ARRIVED", "bookedAt": "2026-06-05T13:04:35"},
-  {"bookingId": 18, "passengerId": 12, "vehicleId": 1, "pickupStation": "Kottbusser Tor", "dropoffStation": "Zoologischer Garten", "state": "ARRIVED", "bookedAt": "2026-06-05T13:29:48"}
+  {"bookingId": 18, "passengerId": 12, "vehicleId": 1, "pickupStation": "Kottbusser Tor", "dropoffStation": "Zoologischer Garten", "state": "ARRIVED", "bookedAt": "2026-06-05T13:29:48"},
+  {"bookingId": 19, "passengerId": 7, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Rosenthaler Platz", "state": "ARRIVED", "bookedAt": "2026-06-05T14:38:49"},
+  {"bookingId": 20, "passengerId": 12, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Hermannstraße", "state": "ARRIVED", "bookedAt": "2026-06-05T14:40:02"},
+  {"bookingId": 21, "passengerId": 12, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T14:40:38"},
+  {"bookingId": 22, "passengerId": 7, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T14:40:56"},
+  {"bookingId": 23, "passengerId": 7, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T14:41:20"},
+  {"bookingId": 24, "passengerId": 6, "vehicleId": 1, "pickupStation": "Kottbusser Tor", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T14:42:39"},
+  {"bookingId": 25, "passengerId": 15, "vehicleId": 1, "pickupStation": "Kottbusser Tor", "dropoffStation": "Potsdamer Platz", "state": "ARRIVED", "bookedAt": "2026-06-05T14:43:09"},
+  {"bookingId": 26, "passengerId": 16, "vehicleId": 1, "pickupStation": "Rosenthaler Platz", "dropoffStation": "Potsdamer Platz", "state": "ARRIVED", "bookedAt": "2026-06-05T14:43:45"},
+  {"bookingId": 27, "passengerId": 17, "vehicleId": 2, "pickupStation": "Kottbusser Tor", "dropoffStation": "Potsdamer Platz", "state": "ARRIVED", "bookedAt": "2026-06-05T14:45:07"},
+  {"bookingId": 28, "passengerId": 6, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Kottbusser Tor", "state": "ARRIVED", "bookedAt": "2026-06-05T15:35:19"}
 ]
