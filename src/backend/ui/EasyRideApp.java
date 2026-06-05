@@ -1041,26 +1041,20 @@ public class EasyRideApp extends Application {
         for (int i = 0; i < stops.size(); i++) {
             RouteStop stop = stops.get(i);
             boolean isPast = i < currentIdx;
-            String marker = isPast ? "✓ " : (i == currentIdx ? "▶ " : "  ");
-            sb.append(marker).append(stop.getStation().getName());
-            // Vergangene Halte: keine Pfeile mehr anzeigen (bereits abgearbeitet)
+            String marker = isPast ? "✓  " : (i == currentIdx ? "▶  " : "   ");
+            sb.append(marker).append(stop.getStation().getName()).append("\n");
             if (!isPast) {
-                // ⬆ nur für Fahrgäste die noch WARTEN (nicht schon eingestiegen)
-                String pickUp = stop.getPassengersToPickUp().stream()
+                stop.getPassengersToPickUp().stream()
                         .filter(p -> p.getState() == PassengerState.WAITING)
                         .map(Passenger::getName)
-                        .collect(Collectors.joining(","));
-                if (!pickUp.isEmpty()) sb.append("  ⬆").append(pickUp);
-                // ⬇ nur für Fahrgäste die bereits IM FAHRZEUG sitzen
-                String dropOff = stop.getPassengersToDropOff().stream()
+                        .forEach(name -> sb.append("      ⬆  ").append(name).append("\n"));
+                stop.getPassengersToDropOff().stream()
                         .filter(p -> p.getState() == PassengerState.IN_TRANSIT)
                         .map(Passenger::getName)
-                        .collect(Collectors.joining(","));
-                if (!dropOff.isEmpty()) sb.append("  ⬇").append(dropOff);
+                        .forEach(name -> sb.append("      ⬇  ").append(name).append("\n"));
             }
-            sb.append('\n');
         }
-        return sb.toString();
+        return sb.toString().stripTrailing();
     }
 
     public static void main(String[] args) { launch(args); }

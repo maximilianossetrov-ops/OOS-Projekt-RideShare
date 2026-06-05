@@ -68,16 +68,32 @@ public class RoutingService implements IRouteService {
         boolean endsAtDepot = !stops.isEmpty() && stops.get(stops.size() - 1).getStation().isDepot();
         int insertLimit = endsAtDepot ? stops.size() - 1 : stops.size();
 
-        int pickupPos = findBestInsertPosition(stops, fromIndex + 1, insertLimit, pickupStation, connections);
-        RouteStop pickupStop = new RouteStop(pickupStation);
-        pickupStop.addPassengerToPickUp(passenger);
-        stops.add(pickupPos, pickupStop);
+        // Pickup: vorhandenen Stop an gleicher Station wiederverwenden, sonst neu einfügen
+        int pickupIdx;
+        int existingPickup = findExistingStop(stops, fromIndex + 1, insertLimit, pickupStation);
+        if (existingPickup >= 0) {
+            stops.get(existingPickup).addPassengerToPickUp(passenger);
+            pickupIdx = existingPickup;
+        } else {
+            int pickupPos = findBestInsertPosition(stops, fromIndex + 1, insertLimit, pickupStation, connections);
+            RouteStop pickupStop = new RouteStop(pickupStation);
+            pickupStop.addPassengerToPickUp(passenger);
+            stops.add(pickupPos, pickupStop);
+            pickupIdx = pickupPos;
+        }
 
         int dropoffLimit = endsAtDepot ? stops.size() - 1 : stops.size();
-        int dropoffPos = findBestInsertPosition(stops, pickupPos + 1, dropoffLimit, dropoffStation, connections);
-        RouteStop dropoffStop = new RouteStop(dropoffStation);
-        dropoffStop.addPassengerToDropOff(passenger);
-        stops.add(dropoffPos, dropoffStop);
+
+        // Dropoff: vorhandenen Stop an gleicher Station wiederverwenden, sonst neu einfügen
+        int existingDropoff = findExistingStop(stops, pickupIdx + 1, dropoffLimit, dropoffStation);
+        if (existingDropoff >= 0) {
+            stops.get(existingDropoff).addPassengerToDropOff(passenger);
+        } else {
+            int dropoffPos = findBestInsertPosition(stops, pickupIdx + 1, dropoffLimit, dropoffStation, connections);
+            RouteStop dropoffStop = new RouteStop(dropoffStation);
+            dropoffStop.addPassengerToDropOff(passenger);
+            stops.add(dropoffPos, dropoffStop);
+        }
 
         // Kapazität prüfen: Belegung durch alle künftigen Halte simulieren.
         // Nur IN_TRANSIT-Fahrgäste (bereits physisch im Fahrzeug) als Startwert –
@@ -102,6 +118,13 @@ public class RoutingService implements IRouteService {
                 .filter(Station::isDepot)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private int findExistingStop(List<RouteStop> stops, int fromIdx, int toIdx, Station station) {
+        for (int i = fromIdx; i < toIdx; i++) {
+            if (stops.get(i).getStation().equals(station)) return i;
+        }
+        return -1;
     }
 
     private int findBestInsertPosition(List<RouteStop> stops, int startIdx, int maxPos,
