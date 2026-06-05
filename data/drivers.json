@@ -3,5 +3,6 @@
   {"id": 2, "name": "abdullah", "email": "abdullah@email.com", "password": "abdullah"},
   {"id": 3, "name": "abdul", "email": "abdul@email.com", "password": "9f075d34fb6a3d1a0b39443841d8d1097bfd395776e785c78da53d88144056aa"},
   {"id": 4, "name": "abdulkadir", "email": "abdulkadir@email.com", "password": "9f075d34fb6a3d1a0b39443841d8d1097bfd395776e785c78da53d88144056aa"},
-  {"id": 5, "name": "Manuellsen", "email": "manuellsen@email.com", "password": "0a1200210b003a95500bbb655191c71a1c1aa16304990a43e3cacb6c811c8f24"}
+  {"id": 5, "name": "Manuellsen", "email": "manuellsen@email.com", "password": "0a1200210b003a95500bbb655191c71a1c1aa16304990a43e3cacb6c811c8f24"},
+  {"id": 6, "name": "Klaus", "email": "klaus@email.com", "password": "d343beb62fac7582124cf06672743bf065680f0eb5c281b591f42da786a18ef2"}
 ]
