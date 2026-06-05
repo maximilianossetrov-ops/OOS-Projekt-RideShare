@@ -18,11 +18,11 @@ public class FleetService implements IFleetService {
         this.routeService = routeService;
     }
 
-    // Nimmt einfach das erste Fahrzeug mit freiem Platz – keine Distanzoptimierung.
+    // Nur Fahrzeuge mit aktivem Fahrer (claimed) und freiem Platz.
     @Override
     public Vehicle getVehicleForPassenger(Passenger passenger) {
         for (Vehicle vehicle : dataStore.getVehicles()) {
-            if (vehicle.hasCapacity()) return vehicle;
+            if (dataStore.isVehicleClaimed(vehicle.getId()) && vehicle.hasCapacity()) return vehicle;
         }
         return null;
     }

@@ -327,6 +327,20 @@ public class EasyRideApp extends Application {
 
         card.getChildren().addAll(title("Wohin geht's?"), welcomeLabel);
 
+        boolean driverActive = Main.getDatabase().getVehicles().stream()
+                .anyMatch(v -> Main.getDatabase().isVehicleClaimed(v.getId()));
+        if (!driverActive) {
+            VBox noDriverBanner = new VBox(4);
+            noDriverBanner.setStyle("-fx-background-color: #FEF3C7; -fx-padding: 12px; -fx-background-radius: 10px;");
+            Label noDriverTitle = new Label("⚠  Kein Fahrer aktiv");
+            noDriverTitle.setStyle("-fx-text-fill: #92400E; -fx-font-weight: bold; -fx-font-size: 13px;");
+            Label noDriverSub = new Label("Buchungen sind erst möglich, wenn ein Fahrer eine Schicht gestartet hat.");
+            noDriverSub.setStyle("-fx-text-fill: #B45309; -fx-font-size: 12px;");
+            noDriverSub.setWrapText(true);
+            noDriverBanner.getChildren().addAll(noDriverTitle, noDriverSub);
+            card.getChildren().add(noDriverBanner);
+        }
+
         Booking activeBooking = Main.getDatabase().getActiveBookingForPassenger(loggedInPassenger.getId());
         if (activeBooking != null) {
             VBox banner = new VBox(6);
@@ -355,6 +369,11 @@ public class EasyRideApp extends Application {
             formLbl("Nach"), targetBox,
             errLabel,
             btn("📍  Jetzt buchen", BLK, e -> {
+                if (!Main.getDatabase().getVehicles().stream()
+                        .anyMatch(v -> Main.getDatabase().isVehicleClaimed(v.getId()))) {
+                    errLabel.setText("Kein Fahrer aktiv – bitte warte, bis ein Fahrer eine Schicht gestartet hat.");
+                    return;
+                }
                 if (Main.getDatabase().getActiveBookingForPassenger(loggedInPassenger.getId()) != null) {
                     errLabel.setText("Du hast bereits eine aktive Fahrt. Bitte schließe diese zuerst ab.");
                     return;
@@ -378,7 +397,7 @@ public class EasyRideApp extends Application {
                     eventBus.publish(RideEventBus.Event.BOOKING_CHANGED);
                     showRideStatusScene();
                 } else {
-                    errLabel.setText("Buchung fehlgeschlagen – kein Fahrzeug verfügbar.");
+                    errLabel.setText("Buchung fehlgeschlagen – alle Fahrzeuge sind voll.");
                 }
             }),
             btn("📋  Meine Fahrten", GRY, e -> showMyRidesScene()),
