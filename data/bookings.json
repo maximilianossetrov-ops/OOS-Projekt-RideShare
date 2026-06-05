@@ -6,6 +6,13 @@
   {"bookingId": 5, "passengerId": 6, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Brandenburger Tor", "state": "ARRIVED", "bookedAt": "2026-05-30T13:42:30"},
   {"bookingId": 6, "passengerId": 7, "vehicleId": 1, "pickupStation": "Alexanderplatz", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-05-30T13:50:21"},
   {"bookingId": 7, "passengerId": 8, "vehicleId": 1, "pickupStation": "Museumsinsel", "dropoffStation": "Potsdamer Platz", "state": "ARRIVED", "bookedAt": "2026-05-30T13:51:38"},
-  {"bookingId": 8, "passengerId": 7, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Rosenthaler Platz", "state": "WAITING", "bookedAt": "2026-06-05T09:51:36"},
-  {"bookingId": 9, "passengerId": 6, "vehicleId": 1, "pickupStation": "Kottbusser Tor", "dropoffStation": "Museumsinsel", "state": "WAITING", "bookedAt": "2026-06-05T09:52:20"}
+  {"bookingId": 8, "passengerId": 7, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Rosenthaler Platz", "state": "ARRIVED", "bookedAt": "2026-06-05T09:51:36"},
+  {"bookingId": 9, "passengerId": 6, "vehicleId": 1, "pickupStation": "Kottbusser Tor", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T09:52:20"},
+  {"bookingId": 10, "passengerId": 9, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Museumsinsel", "state": "ARRIVED", "bookedAt": "2026-06-05T12:41:11"},
+  {"bookingId": 11, "passengerId": 10, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Warschauer Straße", "state": "ARRIVED", "bookedAt": "2026-06-05T12:41:15"},
+  {"bookingId": 12, "passengerId": 13, "vehicleId": 1, "pickupStation": "Friedrichstraße", "dropoffStation": "Warschauer Straße", "state": "WAITING", "bookedAt": "2026-06-05T12:54:33"},
+  {"bookingId": 13, "passengerId": 11, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Kottbusser Tor", "state": "WAITING", "bookedAt": "2026-06-05T12:54:36"},
+  {"bookingId": 14, "passengerId": 12, "vehicleId": 1, "pickupStation": "Zoologischer Garten", "dropoffStation": "Hermannstraße", "state": "WAITING", "bookedAt": "2026-06-05T12:54:41"},
+  {"bookingId": 15, "passengerId": 10, "vehicleId": 1, "pickupStation": "Warschauer Straße", "dropoffStation": "Rosenthaler Platz", "state": "WAITING", "bookedAt": "2026-06-05T12:54:46"},
+  {"bookingId": 16, "passengerId": 14, "vehicleId": 2, "pickupStation": "Zoologischer Garten", "dropoffStation": "Museumsinsel", "state": "WAITING", "bookedAt": "2026-06-05T12:56:59"}
 ]

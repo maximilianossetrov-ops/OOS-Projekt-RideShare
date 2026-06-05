@@ -79,9 +79,13 @@ public class RoutingService implements IRouteService {
         dropoffStop.addPassengerToDropOff(passenger);
         stops.add(dropoffPos, dropoffStop);
 
-        // Kapazität prüfen: Belegung durch alle künftigen Halte simulieren
+        // Kapazität prüfen: Belegung durch alle künftigen Halte simulieren.
+        // Nur IN_TRANSIT-Fahrgäste (bereits physisch im Fahrzeug) als Startwert –
+        // WAITING-Fahrgäste werden über ihre Pickup-Stops im Loop korrekt erfasst.
         Vehicle vehicle = currentRoute.getVehicle();
-        int occupancy = vehicle.getPassengers().size();
+        int occupancy = (int) vehicle.getPassengers().stream()
+                .filter(p -> p.getState() == PassengerState.IN_TRANSIT)
+                .count();
         for (int i = fromIndex; i < stops.size(); i++) {
             occupancy += stops.get(i).getPassengersToPickUp().size();
             if (occupancy > vehicle.getMaxCapacity()) return null;

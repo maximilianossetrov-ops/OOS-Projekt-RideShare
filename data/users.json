@@ -6,5 +6,11 @@
   {"id": 5, "name": "Jason", "email": "jason@email.com", "password": "Test"},
   {"id": 6, "name": "Max", "email": "max@email.com", "password": "74ba7e49e963635164033eb502fb4d47ad7b0ee662a7e0370a0ea0c66659ef88"},
   {"id": 7, "name": "balshed", "email": "balshed@email.com", "password": "994a98c74e71c14eceb198d7d2caf2cd392cdb01a8f5ceecc1b8042ef0d151bc"},
-  {"id": 8, "name": "erkan", "email": "erkan@email.com", "password": "eee896d514cbd6b6a03ec848e0bf2ad931c963c92a4dff6d20085b7f8154afae"}
+  {"id": 8, "name": "erkan", "email": "erkan@email.com", "password": "eee896d514cbd6b6a03ec848e0bf2ad931c963c92a4dff6d20085b7f8154afae"},
+  {"id": 9, "name": "Abu", "email": "abu@email.com", "password": "f8195ea4cf35088fa5ad567c41e0b7bd1e6e9fbe55e390ea9fd05613bd3bbd5a"},
+  {"id": 10, "name": "jürgen", "email": "juergen@email.com", "password": "aa0a68845621ffd69f04b5330c404992a5fed2e5b167052bf7f7efbda539b85d"},
+  {"id": 11, "name": "hans", "email": "hans@email.com", "password": "7a283ad7cd819f18e7ac726890393678bca05768b4a28d727f378eac91062084"},
+  {"id": 12, "name": "vladislav", "email": "vladislav@email.com", "password": "07ff1ca575e028095c294b8f27be9153f284563db636c693fbc50ba288395534"},
+  {"id": 13, "name": "vitalij", "email": "vitalij@email.com", "password": "9c1bf8499916c16dac1ebe90881f514947090c4f37a17c9890476e2d4b62a795"},
+  {"id": 14, "name": "Samuel", "email": "samuel@email.com", "password": "90cc33a41b541af2c1964e3e10a46088cbdedf63031efaa35d588a698c91193f"}
 ]
