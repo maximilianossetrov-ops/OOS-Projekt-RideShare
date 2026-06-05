@@ -1017,8 +1017,7 @@ public class EasyRideApp extends Application {
                 row1, cardsRow, formLbl("Live-Log"), log, row2,
                 back(ev -> {
                     stopTimer();
-                    Main.getDatabase().getVehicles()
-                            .forEach(v -> Main.getDatabase().releaseVehicle(v.getId()));
+                    resetSimulation();
                     showRoleSelectionScene();
                 }));
         ScrollPane scroll = new ScrollPane(root);
@@ -1039,6 +1038,19 @@ public class EasyRideApp extends Application {
                     + "  Fzg #" + v.getId() + "  [" + cap + (full ? " VOLL" : "") + "]\n");
         } else {
             log.appendText("    " + name + "  " + f + " → " + t + "  ❌  kein Fzg verfügbar\n");
+        }
+    }
+
+    private void resetSimulation() {
+        for (Vehicle v : Main.getDatabase().getVehicles()) {
+            if (v.getCurrentRoute() != null) {
+                RouteStop stop;
+                while ((stop = v.getCurrentRoute().getCurrentStop()) != null)
+                    fleetService.confirmArrival(v, stop);
+            }
+            new ArrayList<>(v.getPassengers()).forEach(v::removePassenger);
+            v.setCurrentRoute(null);
+            Main.getDatabase().releaseVehicle(v.getId());
         }
     }
 
