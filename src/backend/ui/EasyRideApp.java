@@ -65,6 +65,25 @@ public class EasyRideApp extends Application {
             restoreRoutesFromActiveBookings(routeService);
         }
         window.setTitle("EasyRide – Smart Mobility");
+        window.setOnCloseRequest(event -> {
+            if (loggedInDriver != null && loggedInDriverVehicleId != 0) {
+                Vehicle own = Main.getDatabase().getVehicles().stream()
+                        .filter(v -> v.getId() == loggedInDriverVehicleId)
+                        .findFirst().orElse(null);
+                if (own != null && own.getCurrentRoute() != null
+                        && own.getCurrentRoute().getCurrentStop() != null) {
+                    event.consume();
+                    Alert alert = new Alert(Alert.AlertType.WARNING);
+                    alert.setTitle("Schicht aktiv");
+                    alert.setHeaderText("Fenster kann nicht geschlossen werden");
+                    alert.setContentText(
+                            "Du hast noch eine aktive Fahrt.\n"
+                            + "Bitte bestätige erst alle Haltestellen,\n"
+                            + "bevor du das Fenster schließt.");
+                    alert.showAndWait();
+                }
+            }
+        });
         showRoleSelectionScene();
     }
 
@@ -996,7 +1015,12 @@ public class EasyRideApp extends Application {
         root.getChildren().addAll(
                 title("EasyRide LIVE – Vollsimulation"), subLbl, new Separator(),
                 row1, cardsRow, formLbl("Live-Log"), log, row2,
-                back(ev -> { stopTimer(); showRoleSelectionScene(); }));
+                back(ev -> {
+                    stopTimer();
+                    Main.getDatabase().getVehicles()
+                            .forEach(v -> Main.getDatabase().releaseVehicle(v.getId()));
+                    showRoleSelectionScene();
+                }));
         ScrollPane scroll = new ScrollPane(root);
         scroll.setFitToWidth(true); scroll.setStyle(BG);
         show(scroll, 760, 840);
